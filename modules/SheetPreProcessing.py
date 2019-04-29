@@ -40,7 +40,7 @@ class SheetPreProcessing:
 
 
         #size for a zero Mat
-        size = (img.shape[1], img.shape[0])
+        size = (img.shape[0], img.shape[1])
         result = np.zeros(size)
         cv2.drawContours(result, self.contours, -1, 255, 3)
         return result
@@ -50,7 +50,7 @@ class SheetPreProcessing:
 
         for i in range(len(self.contours)):
             # for each closed contour, calculate epsilon for approximation
-            epsilon = 0.01 * cv2.arcLength(self.contours[i], True)
+            epsilon = 0.02 * cv2.arcLength(self.contours[i], True)
             approx = cv2.approxPolyDP(self.contours[i], epsilon, True)
             corners = len(approx)
             # find out rectangles approximately
@@ -59,19 +59,19 @@ class SheetPreProcessing:
                 mm = cv2.moments(self.contours[i])
                 cx = int(mm['m10'] / mm['m00'])
                 cy = int(mm['m01'] / mm['m00'])
-                cv2.circle(img_contour, (cx, cy), 3, 255, -1)
+                cv2.circle(img_contour, (cx, cy), 10, 255, -1)
 
 
 
 if __name__ == '__main__':
     # read img
-    test = cv2.imread('test_images/IMG_0788.jpg')
+    test = cv2.imread('test_images/IMG_0790.jpg')
 
     parameter = SheetPreProcessing()
     result = parameter.find_sheet_contours(test)
     parameter.findsquares(result)
     #resize for a better look
-    output = cv2.resize(result, (int(test.shape[1]/4), int(test.shape[0]/4)))
+    output = cv2.resize(result, (int(test.shape[1]/8), int(test.shape[0]/8)))
 
     cv2.imshow("test", output)
     cv2.waitKey(0)
