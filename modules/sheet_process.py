@@ -66,7 +66,7 @@ class AnswerSheet(Sheet):
             if len(approx) == 4:  # Rectangle has four vertices
                 self.rects.append(approx)
 
-    def MapRect2Array(self):
+    def mapRect2Array(self):
         '''
             Save the vertices of every found rectangles in ndarry
         '''
@@ -88,7 +88,7 @@ class AnswerSheet(Sheet):
 
     # mask = rect_heights > cell_height-
 
-    def drawRect(self, time=20):
+    def drawRect(self, time=1):
         if not hasattr(self, 'rects'):
             self.findRects()
         gray_3channel = cv.cvtColor(self.img_gray, cv.COLOR_GRAY2RGB)
@@ -110,7 +110,7 @@ class CoverSheet(Sheet):
 
 
 if __name__ == '__main__':
-    testsheet = AnswerSheet('test_images/IMG_0788.jpg')
-    testsheet.MapRect2Array()
-    # testsheet.drawRect()
+    testsheet = AnswerSheet('test_images/IMG_0792.jpg')
+    # testsheet.MapRect2Array()
+    testsheet.drawRect()
     pass
