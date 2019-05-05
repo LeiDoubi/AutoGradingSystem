@@ -1,5 +1,5 @@
-import cv2 as cv
 import numpy as np
+import cv2 as cv
 
 
 class Sheet:
@@ -16,6 +16,7 @@ class Sheet:
                 'Image can\'t be loaded with the path:{}'.format(self.imgPath)
             )
         self.img_gray = cv.cvtColor(self.img_original, cv.COLOR_RGB2GRAY)
+        self.img_gray_3channel = cv.cvtColor(self.img_gray, cv.COLOR_GRAY2RGB)
         # remove noise
         img_blur = cv.GaussianBlur(self.img_gray, (5, 5), 0)
 
@@ -31,9 +32,9 @@ class Sheet:
 
 
 class AnswerSheet(Sheet):
-    def findContours(self):
+    def _findContours(self):
         # set morphology structures size
-        structsize = int(self.img_gray.shape[1]/70)
+        structsize = int(self.img_gray.shape[1]/40)
 
         # hsize for horizontal lines, vsize for vertical lines
         hsize = (structsize, 1)
@@ -62,7 +63,7 @@ class AnswerSheet(Sheet):
     def findRects(self):
         # make sure contours exists
         if not hasattr(self, '_contours'):
-            self.findContours()
+            self._findContours()
         # find all rectangles
         self.rects = []
         for idx, contour in enumerate(reversed(self._contours)):
@@ -73,10 +74,12 @@ class AnswerSheet(Sheet):
                 self.rects.append(approx)
         # convert to numpy array
 
-    def mapRect2Table(self):
+    def mapRects2Table(self):
         '''
             Save the vertices of every found rectangles in ndarry
         '''
+        self.table = []
+        y_max_err = 18
         if not hasattr(self, 'rects'):
             self.findRects()
         # mass center of cells
@@ -91,33 +94,104 @@ class AnswerSheet(Sheet):
         # last dim posx, posy
         rects = np.concatenate((np.array(self.rects, dtype=np.int16),
                                 mc), axis=1)
-        # index of current cell
-        idx_current_cell = 0
-        for idx in range(rects.shape[0]):
-            if np.abs(rects[idx, 5, 0, 1]-rects[idx+1, 5, 0, 1]) < 20:
-                idx_current_cell = idx
+
+        idx = 0
+        idx_1st_Answer_row = 0
+        # in case the number of detected cells in first line smaller than 5
+        while idx < rects.shape[0]:
+            if not np.all(np.abs(rects[idx:idx+3, 4, 0, 1] -
+                                 np.mean(rects[idx:idx+3, 4, 0, 1]))
+                          < y_max_err):
+                idx = idx + 1
+            else:
+                idx_1st_Answer_row = idx+3
+                while np.abs(
+                    rects[idx_1st_Answer_row, 4, 0, 1] -
+                    np.mean(rects[idx:idx+3, 4, 0, 1])
+                ) < y_max_err:
+                    idx_1st_Answer_row = idx_1st_Answer_row + 1
                 break
-        colum_height = 
-        while idx_current_cell < rects.shape[0]:
-            if idx_current_cell+5 < rects.shape[0]:
+        self.table.append(rects[idx:idx_1st_Answer_row, :, :, :])
+        # the y of the centroids in the last line
+        y_mc_lastLine = np.mean(rects[idx:idx_1st_Answer_row, :, :, 1])
+        # use kmeans to estimate the height of cell
+        kmeans_criteria = (cv.TERM_CRITERIA_EPS +
+                           cv.TERM_CRITERIA_MAX_ITER, 10, 0.1)
+        pos_corners_firstLine = rects[idx:idx_1st_Answer_row, :-1, :, 1].reshape(
+            (idx_1st_Answer_row-idx)*4, 1)
+        pos_corners_firstLine = pos_corners_firstLine.astype(np.float32)
+        _, _, kmeans_centers = cv.kmeans(
+            pos_corners_firstLine,
+            2,
+            None,
+            kmeans_criteria,
+            3,
+            cv.KMEANS_RANDOM_CENTERS
+        )
+        height_cell = np.abs(kmeans_centers[0]-kmeans_centers[1])
+        idx = idx_1st_Answer_row
+        while idx+4 < rects.shape[0]:
+            ymean_mc_FiveCells = np.mean(rects[idx:idx+5, 4, 0, 1])
+            isFiveSuccessiveCellsInLine = np.all(
+                np.abs(rects[idx:idx+5, 4, 0, 1] -
+                       ymean_mc_FiveCells) < y_max_err)
+            isFiveSuccessiveCellsInNextLine = np.abs(
+                ymean_mc_FiveCells -
+                (y_mc_lastLine+height_cell)) < y_max_err
+            if isFiveSuccessiveCellsInNextLine and isFiveSuccessiveCellsInLine:
+                # sort the 5 cells from left to right
+                # based on the x of their centriods
+                sorted_idx = np.argsort(rects[idx:idx+5, 4, :, 0].flatten())
+                # append sorted 5 cells aligned in one line
+                self.table.append(rects[idx+sorted_idx, :, :, :])
+                y_mc_lastLine = ymean_mc_FiveCells
+                idx = idx + 5
+            else:
+                self.table.append(None)
+                while idx+4 < rects.shape[0]:
+                    idx = idx + 1
+                    print(rects[idx, 4, :, 1], (y_mc_lastLine+height_cell*2))
+                    isCellInNextLine = np.abs(
+                        rects[idx, 4, :, 1]-(y_mc_lastLine+height_cell*2)
+                    ) < y_max_err
+                    if isCellInNextLine:
+                        # update the y of centriods in last line
+                        y_mc_lastLine = y_mc_lastLine+height_cell
+                        break
 
+    def drawTable(self):
+        gray_3channel = self.img_gray_3channel.copy()
+        table = self.table[1:]
+        map_idx2char = {
+            1: 'A',
+            2: 'B',
+            3: 'C',
+            4: 'D'
+        }
+        for i, cellsInLine in enumerate(table):
+            if cellsInLine is not None:
+                for j in range(1, cellsInLine.shape[0]):
+                    cv.drawContours(
+                        gray_3channel,
+                        [cellsInLine[j, :-1, :, :].astype(np.int32)],
+                        -1,
+                        (255, 0, 0),
+                        3
+                    )
+                    cv.putText(
+                        gray_3channel,
+                        str(i+1)+','+map_idx2char[j],
+                        (cellsInLine[j, 4, :, 0]-20,
+                         cellsInLine[j, 4, :, 1]+15),
+                        cv.FONT_HERSHEY_PLAIN,
+                        3,
+                        (20, 20, 255),
+                        4
+                    )
+                    cv.imshow('Find cells', gray_3channel)
+                    cv.waitKey(1)
 
-            # # approximately calculate the height of all found rectangles
-            # # TODO test failed
-            # sums_posx_posy = rects.sum(axis=3)
-            # sums_height_weight = sums_posx_posy.max(
-            #     axis=1)-sums_posx_posy.min(axis=1)
-
-            # rect_heights = np.vstack((rects[:, 2, 0, 1]-rects[:, 1, 0, 1],
-            #                           rects[:, 3, 0, 1]-rects[:, 0, 0, 1])).\
-            #     min(axis=0).flatten()
-            # mask = rect_heights > rect_heights.max()*2/3
-            # pass
-            # # filter wo
-
-            # mask = rect_heights > cell_height-
-
-    def drawRect(self, time=1):
+    def drawRect(self, time=200):
 
         if not hasattr(self, 'rects'):
             self.findRects()
@@ -135,13 +209,48 @@ class AnswerSheet(Sheet):
             else:
                 cv.waitKey(0)
 
+    def hough_trans_ROI(self, rect):
+        import time
+        starttime = time.time()
+        # rect.shape = (4,1,2)
+        i_1 = rect[0, 0, 1]
+        i_2 = rect[3, 0, 1]
+        j_1 = rect[0, 0, 0]
+        j_2 = rect[1, 0, 0]
+
+        lines = cv.HoughLinesP(
+            self.img_bi[i_1:i_2+1, j_1:j_2+1], 1, np.pi/20, 7, minLineLength=7)
+        lines[:, 0, [0, 2]] = lines[:, 0, [0, 2]]+j_1
+        lines[:, :, [1, 3]] = lines[:, :, [1, 3]]+i_1
+        elapsed_time = time.time()
+        print('needed time: {}'.format((elapsed_time-starttime)*260))
+        return lines
+
+    def run(self):
+        self.findRects()
+        self.mapRects2Table()
+        self.drawTable()
+
 
 class CoverSheet(Sheet):
     pass
 
 
 if __name__ == '__main__':
-    testsheet = AnswerSheet('test_images/IMG_0788.jpg')
-    testsheet.mapRect2Table()
+    testsheet = AnswerSheet('test_images/IMG_0815.jpg')
     # testsheet.drawRect()
-    pass
+    testsheet.run()
+
+    # testsheet.mapRect2Table()
+    # testsheet.hough_trans()
+    # testsheet.drawRect()
+    # testsheet.findRects()
+    # lines = testsheet.hough_trans_ROI(testsheet.rects[12])
+    # for line in lines:
+    #     x1, y1, x2, y2 = line.flatten()
+    #     cv.line(testsheet.gray_3channel, (x1, y1), (x2, y2), (255, 0, 0), 4)
+
+    # cv.drawContours(testsheet.gray_3channel, [
+    #                 testsheet.rects[12]], -1, (255, 0, 0), 3)
+    # cv.imshow('show lines', testsheet.gray_3channel)
+    # cv.waitKey(0)
