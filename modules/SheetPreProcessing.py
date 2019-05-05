@@ -6,6 +6,9 @@ class SheetPreProcessing:
 
     def __init__(self):
         self.contours = None
+        self.moment = []
+        self.sheet_lines = []
+
 
     def find_sheet_contours(self, img):
         #convert img to gray
@@ -16,7 +19,7 @@ class SheetPreProcessing:
         img_gray_horizon = img_gray.copy()
         img_gray_vertical = img_gray.copy()
         # set morphology structures size
-        structsize = int(img_gray.shape[1]/30)
+        structsize = int(img_gray.shape[1]/40)
 
         #hsize for horizontal lines, vsize for vertical lines
         hsize = (structsize, 1)
@@ -50,7 +53,7 @@ class SheetPreProcessing:
 
         for i in range(len(self.contours)):
             # for each closed contour, calculate epsilon for approximation
-            epsilon = 0.02 * cv2.arcLength(self.contours[i], True)
+            epsilon = 0.01 * cv2.arcLength(self.contours[i], True)
             approx = cv2.approxPolyDP(self.contours[i], epsilon, True)
             corners = len(approx)
             # find out rectangles approximately
@@ -60,21 +63,72 @@ class SheetPreProcessing:
                 cx = int(mm['m10'] / mm['m00'])
                 cy = int(mm['m01'] / mm['m00'])
                 cv2.circle(img_contour, (cx, cy), 10, 255, -1)
+                self.moment.append((cx, cy))
+
+    def rectfilter(self):
+        line = 0
+
+        for i in range(len(self.moment)-5):
+            temp = []
+            test=[]
+            idx=[]
+            for t in range(0, 5):
+                temp.append(self.moment[i+t][1])
+                array_y = np.array(temp)
+
+            mean = array_y.sum()/5
+            for t in range(len(array_y)):
+                if array_y[t]- mean < 6 and array_y[t] - mean > -6:
+                    test.append(array_y[t])
+
+            if len(test) < 5:
+                if line == 0 or line == 50:
+                    continue
+
+            else:
+                self.sheet_lines.append(test)
+                line += 1
+
+        for t in range(len(self.sheet_lines)-1):
+
+            tobedeleted = sum(self.sheet_lines[t])/5-sum(self.sheet_lines[t+1])/5
+            if sum(self.sheet_lines[t])/5-sum(self.sheet_lines[t+1])/5 >70:
+                #print(tobedeleted)
+                print(t+1)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
 if __name__ == '__main__':
     # read img
     test = cv2.imread('test_images/IMG_0790.jpg')
-
     parameter = SheetPreProcessing()
     result = parameter.find_sheet_contours(test)
     parameter.findsquares(result)
+    parameter.rectfilter()
     #resize for a better look
     output = cv2.resize(result, (int(test.shape[1]/8), int(test.shape[0]/8)))
 
     cv2.imshow("test", output)
     cv2.waitKey(0)
+    #lines = cv2.HoughLinesP(ROI, 1, np.pi / 20, 7, minLineLength=7)
+    #cv2.imshow("test", output)
+   # cv2.waitKey(0)
 
 
 
