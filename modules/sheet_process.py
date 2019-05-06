@@ -1,4 +1,4 @@
-import numpy as np
+ximport numpy as np
 import cv2 as cv
 
 
@@ -188,6 +188,7 @@ class AnswerSheet(Sheet):
                         (20, 20, 255),
                         4
                     )
+
                     cv.imshow('Find cells', gray_3channel)
                     cv.waitKey(1)
 
@@ -237,9 +238,10 @@ class CoverSheet(Sheet):
 
 
 if __name__ == '__main__':
-    testsheet = AnswerSheet('test_images/IMG_0815.jpg')
-    # testsheet.drawRect()
-    testsheet.run()
+    testsheet = AnswerSheet('test_images/IMG_0811.jpg')
+    testsheet.drawRect()
+    # testsheet.run()
+
 
     # testsheet.mapRect2Table()
     # testsheet.hough_trans()
