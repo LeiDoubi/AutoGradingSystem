@@ -1,13 +1,18 @@
-ximport numpy as np
+import numpy as np
 import cv2 as cv
+import geometry
+import time
 
 
 class Sheet:
-    def __init__(self, imgPath, active_threshold_on=False):
+    def __init__(self, imgPath, active_threshold_on=False, nquestions=33):
         self.imgPath = imgPath
+        self.nquestions = nquestions
         # assert(os.path.isabs(imgPath))
         self._activate_threshold_on = active_threshold_on
         self.preprocessImg()
+
+        self.detected_crosses = None
 
     def preprocessImg(self):
         self.img_original = cv.imread(self.imgPath)
@@ -150,7 +155,7 @@ class AnswerSheet(Sheet):
                 self.table.append(None)
                 while idx+4 < rects.shape[0]:
                     idx = idx + 1
-                    print(rects[idx, 4, :, 1], (y_mc_lastLine+height_cell*2))
+                    # print(rects[idx, 4, :, 1], (y_mc_lastLine+height_cell*2))
                     isCellInNextLine = np.abs(
                         rects[idx, 4, :, 1]-(y_mc_lastLine+height_cell*2)
                     ) < y_max_err
@@ -159,8 +164,43 @@ class AnswerSheet(Sheet):
                         y_mc_lastLine = y_mc_lastLine+height_cell
                         break
 
+    def detectCrosses1(self):
+        '''
+        This function detect whether cross exist in the each cell within the lines \n
+        corresponding to from 1st question to last question
+        '''
+        # skip the first row
+        table = self.table[1:]
+        self.detected_crosses = np.zeros((self.nquestions, 4), dtype=bool)
+        for i in range(self.nquestions):
+            # skip the chopped off rows
+            if table[i] is not None:
+                # skip the first column
+                for j in range(1, 5):
+                    _, lines = geometry.isCrossinCell(
+                        self.img_bi, table[i][j, :-1, :, :])
+                    img_gray_3channel = self.img_gray_3channel
+                    if lines is not None:
+                        for line in lines:
+                            pass
+                            cv.line(
+                                img_gray_3channel,
+                                (line[0, 0], line[0, 1]),
+                                (line[0, 2], line[0, 3]),
+                                (0, 255, 0),
+                                2)
+                            cv.imshow('lines found', img_gray_3channel)
+                            cv.waitKey(1)
+                    # if the cell contains abnormal situation, the detection
+                    # should skip current row
+                    # if detected_cross is None:
+                    #     break
+                    # else:
+                    #     self.detected_crosses[i, j] = detected_cross
+
     def drawTable(self):
         gray_3channel = self.img_gray_3channel.copy()
+        # skip the first row
         table = self.table[1:]
         map_idx2char = {
             1: 'A',
@@ -228,9 +268,12 @@ class AnswerSheet(Sheet):
         return lines
 
     def run(self):
+        starttime = time.time()
         self.findRects()
         self.mapRects2Table()
-        self.drawTable()
+        # self.drawTable()
+        self.detectCrosses1()
+        print('needed time:{}s'.format(time.time()-starttime))
 
 
 class CoverSheet(Sheet):
@@ -239,10 +282,8 @@ class CoverSheet(Sheet):
 
 if __name__ == '__main__':
     testsheet = AnswerSheet('test_images/IMG_0811.jpg')
-    testsheet.drawRect()
-    # testsheet.run()
-
-
+    # testsheet.drawRect()
+    testsheet.run()
 
     # testsheet.mapRect2Table()
     # testsheet.hough_trans()
