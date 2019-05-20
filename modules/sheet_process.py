@@ -172,7 +172,8 @@ class AnswerSheet(Sheet):
         # skip the first row
         table = self.table[1:]
         self.detected_crosses = np.zeros((self.nquestions, 4), dtype=bool)
-        for i in range(2,self.nquestions):
+        cv.namedWindow('lines found', cv.WINDOW_NORMAL)
+        for i in range(2, self.nquestions):
             # skip the chopped off rows
             if table[i] is not None:
                 # skip the first column
