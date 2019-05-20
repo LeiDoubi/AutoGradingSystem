@@ -1,11 +1,12 @@
 # import time
 import numpy as np
 import cv2 as cv
+import scipy.spatial.distance as scid
 
 
-def isCrossinCell(img, rect):
+def detectCrossinCell(img, rect):
     '''
-    isCrossContained(img, rect)=> iscrossincell,is abnormal, lines
+    detectCrossinCell(img, rect)=> iscrossincell,isabnormal, lines
     @param iscrossincell : bool
     @param isabnormal  : bool
     @param lines all found lines: ndarry, shape: (N,1,4)
@@ -13,6 +14,9 @@ def isCrossinCell(img, rect):
     @param rect: shape(4,1,2), the coordinates of the corners of the rectangle
 
     '''
+    iscrossincell = False
+    isabnormal = False
+    lines = None
     if not isinstance(img, np.ndarray) or not isinstance(rect, np.ndarray):
         raise Exception(' the type of image or rectangular is not np.ndarray')
     if rect.shape[0] != 4:
@@ -25,13 +29,13 @@ def isCrossinCell(img, rect):
         (rect_float[:, :, 0]**2+rect_float[:, :, 1]**2).flatten())
     leftupperCorn = rect[index_sorted[0], :, :]
     rightlowerCorn = rect[index_sorted[-1], :, :]
-    erode = 5
+    erode = 7
     lines = cv.HoughLinesP(
         img[leftupperCorn[0, 1]+erode:rightlowerCorn[0, 1]-erode,
             leftupperCorn[0, 0]+erode:rightlowerCorn[0, 0]-erode],
-        1, np.pi/20, 7, minLineLength=4)
+        1, np.pi/20, 7, minLineLength=8)
     if lines is None:
-        return False, False, None
+        return iscrossincell, isabnormal, lines
     else:
         # add offset to get absolute coordinates
         lines[:, :, [0, 2]] = leftupperCorn[0, 0]+lines[:, :, [0, 2]]
@@ -40,11 +44,20 @@ def isCrossinCell(img, rect):
         #  segmented_lines is None means that the
         #  lines can not be segmented into 2 groups
         if segmented_lines is None:
-            return False, True, lines
+            isabnormal = True
+            return iscrossincell, isabnormal, lines
         else:
             intersections = _findIntersections2LineGroup(
                 segmented_lines[0], segmented_lines[1])
-            return True, lines
+            # _checkOneCluster(intersections)
+            return True, isabnormal, lines
+
+
+def _checkOneCluster(X):
+    '''
+    '''
+    distance_matrix = scid.cdist(X, X)
+    pass
 
 
 def _segmentLines(lines):
@@ -57,7 +70,7 @@ def _segmentLines(lines):
     slopes = (lines[:, :, 3]-lines[:, :, 1])/(lines[:, :, 2]-lines[:, :, 0])
     slope_positive = slopes > 0
     lines_pos, lines_neg = lines[slope_positive, :], lines[~slope_positive, :]
-    if lines_pos is not None and lines_neg is not None:
+    if lines_pos.shape[0] != 0 and lines_neg.shape[0] != 0:
         return lines_pos, lines_neg
     else:
         return None
@@ -100,6 +113,7 @@ def _intersection(lineA, lineB, isLineSegment=True):
     if not isLineSegment:
         return point
     else:
+        # make sure the intersection is on the both line segments
         sorted_x = np.sort([[x1, x2], [x3, x4]])
         if point[0] <= sorted_x[0, 1]\
                 and point[0] >= sorted_x[0, 0]\

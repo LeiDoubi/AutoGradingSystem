@@ -172,22 +172,26 @@ class AnswerSheet(Sheet):
         # skip the first row
         table = self.table[1:]
         self.detected_crosses = np.zeros((self.nquestions, 4), dtype=bool)
-        for i in range(self.nquestions):
+        for i in range(2,self.nquestions):
             # skip the chopped off rows
             if table[i] is not None:
                 # skip the first column
                 for j in range(1, 5):
-                    _, lines = geometry.isCrossinCell(
+                    _, isabnormal, lines = geometry.detectCrossinCell(
                         self.img_bi, table[i][j, :-1, :, :])
                     img_gray_3channel = self.img_gray_3channel
                     if lines is not None:
+                        if isabnormal:
+                            linecolor = (0, 0, 255)
+                        else:
+                            linecolor = (20, 255, 20)
                         for line in lines:
                             pass
                             cv.line(
                                 img_gray_3channel,
                                 (line[0, 0], line[0, 1]),
                                 (line[0, 2], line[0, 3]),
-                                (0, 255, 0),
+                                linecolor,
                                 2)
                             cv.imshow('lines found', img_gray_3channel)
                             cv.waitKey(1)
