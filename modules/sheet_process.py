@@ -23,16 +23,16 @@ class Sheet:
         self.img_gray = cv.cvtColor(self.img_original, cv.COLOR_RGB2GRAY)
         self.img_gray_3channel = cv.cvtColor(self.img_gray, cv.COLOR_GRAY2RGB)
         # remove noise
-        img_blur = cv.GaussianBlur(self.img_gray, (5, 5), 0)
+        self.img_blur = cv.GaussianBlur(self.img_gray, (5, 5), 0)
 
         # use activate threshold only in necessary case
         if self._activate_threshold_on:
             self.img_bi = cv.adaptiveThreshold(
-                img_blur, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C,
+                self.img_blur, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C,
                 cv.THRESH_BINARY_INV, 11, 2)
         else:
             _, self.img_bi = cv.threshold(
-                img_blur, 100, 255, cv.THRESH_BINARY_INV)
+                self.img_blur, 100, 255, cv.THRESH_BINARY_INV)
         pass
 
 
@@ -169,33 +169,39 @@ class AnswerSheet(Sheet):
         This function detect whether cross exist in the each cell within the lines \n
         corresponding to from 1st question to last question
         '''
+        _, img_bi = cv.threshold(
+            self.img_blur, 100, 255, cv.THRESH_BINARY_INV)
+        kernel = np.ones((2, 2), np.uint8)
+        img_bi = cv.erode(img_bi, kernel, iterations=1)
         # skip the first row
         table = self.table[1:]
         self.detected_crosses = np.zeros((self.nquestions, 4), dtype=bool)
         cv.namedWindow('lines found', cv.WINDOW_NORMAL)
-        for i in range(2, self.nquestions):
+        for i in range(0, self.nquestions):
             # skip the chopped off rows
             if table[i] is not None:
                 # skip the first column
                 for j in range(1, 5):
-                    _, isabnormal, lines = geometry.detectCrossinCell(
-                        self.img_bi, table[i][j, :-1, :, :])
+                    iscrossincell, isabnormal, lines = geometry.detectCrossinCell(
+                        img_bi, table[i][j, :-1, :, :])
                     img_gray_3channel = self.img_gray_3channel
                     if lines is not None:
                         if isabnormal:
                             linecolor = (0, 0, 255)
+                        elif iscrossincell: 
+                            linecolor = (214, 44, 152)
                         else:
                             linecolor = (20, 255, 20)
                         for line in lines:
                             pass
-                            cv.line(
-                                img_gray_3channel,
-                                (line[0, 0], line[0, 1]),
-                                (line[0, 2], line[0, 3]),
-                                linecolor,
-                                2)
-                            cv.imshow('lines found', img_gray_3channel)
-                            cv.waitKey(1)
+                            # cv.line(
+                            #     img_gray_3channel,
+                            #     (line[0, 0], line[0, 1]),
+                            #     (line[0, 2], line[0, 3]),
+                            #     linecolor,
+                            #     2)
+                            # cv.imshow('lines found', img_gray_3channel)
+                            # cv.waitKey(1)
                     # if the cell contains abnormal situation, the detection
                     # should skip current row
                     # if detected_cross is None:
@@ -286,6 +292,7 @@ class CoverSheet(Sheet):
 
 
 if __name__ == '__main__':
+    # testsheet = AnswerSheet('test_images/IMG_0792.jpg')
     testsheet = AnswerSheet('test_images/IMG_0811.jpg')
     # testsheet.drawRect()
     testsheet.run()

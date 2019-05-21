@@ -33,13 +33,13 @@ def detectCrossinCell(img, rect):
     lines = cv.HoughLinesP(
         img[leftupperCorn[0, 1]+erode:rightlowerCorn[0, 1]-erode,
             leftupperCorn[0, 0]+erode:rightlowerCorn[0, 0]-erode],
-        1, np.pi/20, 7, minLineLength=8)
+        1, np.pi/20, 7, minLineLength=10)
     if lines is None:
         return iscrossincell, isabnormal, lines
     else:
         # add offset to get absolute coordinates
-        lines[:, :, [0, 2]] = leftupperCorn[0, 0]+lines[:, :, [0, 2]]
-        lines[:, :, [1, 3]] = leftupperCorn[0, 1]+lines[:, :, [1, 3]]
+        lines[:, :, [0, 2]] = leftupperCorn[0, 0]+erode+lines[:, :, [0, 2]]
+        lines[:, :, [1, 3]] = leftupperCorn[0, 1]+erode+lines[:, :, [1, 3]]
         segmented_lines = _segmentLines(lines)
         #  segmented_lines is None means that the
         #  lines can not be segmented into 2 groups
@@ -49,15 +49,33 @@ def detectCrossinCell(img, rect):
         else:
             intersections = _findIntersections2LineGroup(
                 segmented_lines[0], segmented_lines[1])
-            # _checkOneCluster(intersections)
-            return True, isabnormal, lines
+            if intersections.shape[0] != 0:
+                iscrossincell = isLineinOneCluster(intersections)
+            return iscrossincell, isabnormal, lines
 
 
-def _checkOneCluster(X):
+def isLineinOneCluster(X):
     '''
     '''
+    distance_threshold = 10
     distance_matrix = scid.cdist(X, X)
-    pass
+    result = {}
+    current_stack = [0]
+    while len(current_stack) != 0:
+        index_currentpoint = current_stack.pop()
+        result[index_currentpoint] = None
+        index_nearpoints = np.argwhere(
+            np.logical_and(
+                distance_matrix[index_currentpoint] < distance_threshold,
+                distance_matrix[index_currentpoint] != 0
+            )
+        )
+        for index_nearpoint in index_nearpoints:
+            int_index_nearpoint = int(index_nearpoint)
+            if int_index_nearpoint not in result:
+                result[int_index_nearpoint] = None
+                current_stack.append(int_index_nearpoint)
+    return len(result) == X.shape[0]
 
 
 def _segmentLines(lines):
@@ -68,8 +86,9 @@ def _segmentLines(lines):
     return  lines with positive slope, lines with negative slope
     '''
     slopes = (lines[:, :, 3]-lines[:, :, 1])/(lines[:, :, 2]-lines[:, :, 0])
-    slope_positive = slopes > 0
-    lines_pos, lines_neg = lines[slope_positive, :], lines[~slope_positive, :]
+    slope_positive = slopes >= 0
+    slope_negative = slopes < 0
+    lines_pos, lines_neg = lines[slope_positive, :], lines[slope_negative, :]
     if lines_pos.shape[0] != 0 and lines_neg.shape[0] != 0:
         return lines_pos, lines_neg
     else:
@@ -102,6 +121,7 @@ def _intersection(lineA, lineB, isLineSegment=True):
     --               --  --   --      --                   --
     return (x, y) if intersction exists else None
     '''
+    allowed_error = 4
     x1, y1, x2, y2 = lineA
     x3, y3, x4, y4 = lineB
     coff = np.array([[y2-y1, x1-x2], [y4-y3, x3-x4]])
@@ -115,10 +135,10 @@ def _intersection(lineA, lineB, isLineSegment=True):
     else:
         # make sure the intersection is on the both line segments
         sorted_x = np.sort([[x1, x2], [x3, x4]])
-        if point[0] <= sorted_x[0, 1]\
-                and point[0] >= sorted_x[0, 0]\
-                and point[0] <= sorted_x[1, 1]\
-                and point[0] >= sorted_x[1, 0]:
+        if point[0] <= sorted_x[0, 1]+allowed_error\
+                and point[0] >= sorted_x[0, 0]-allowed_error\
+                and point[0] <= sorted_x[1, 1]+allowed_error\
+                and point[0] >= sorted_x[1, 0]-allowed_error:
             return point
         else:
             return None
