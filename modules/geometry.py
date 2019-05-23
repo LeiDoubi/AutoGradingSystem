@@ -33,7 +33,7 @@ def detectCrossinCell(img, rect):
     lines = cv.HoughLinesP(
         img[leftupperCorn[0, 1]+erode:rightlowerCorn[0, 1]-erode,
             leftupperCorn[0, 0]+erode:rightlowerCorn[0, 0]-erode],
-        1, np.pi/20, 7, minLineLength=10)
+        1, np.pi/10, 7, minLineLength=10)
     if lines is None:
         return iscrossincell, isabnormal, lines
     else:
