@@ -193,15 +193,15 @@ class AnswerSheet(Sheet):
                         else:
                             linecolor = (20, 255, 20)
                         for line in lines:
-                            pass
-                            # cv.line(
-                            #     img_gray_3channel,
-                            #     (line[0, 0], line[0, 1]),
-                            #     (line[0, 2], line[0, 3]),
-                            #     linecolor,
-                            #     2)
-                            # cv.imshow('lines found', img_gray_3channel)
-                            # cv.waitKey(1)
+                            #pass
+                            cv.line(
+                                img_gray_3channel,
+                                (line[0, 0], line[0, 1]),
+                                (line[0, 2], line[0, 3]),
+                                linecolor,
+                                2)
+                    cv.imshow('lines found', img_gray_3channel)
+                    cv.waitKey(1)
                     # if the cell contains abnormal situation, the detection
                     # should skip current row
                     # if detected_cross is None:
@@ -282,8 +282,9 @@ class AnswerSheet(Sheet):
         starttime = time.time()
         self.findRects()
         self.mapRects2Table()
-        # self.drawTable()
+        #self.drawTable()
         self.detectCrosses1()
+        cv.waitKey(0)
         print('needed time:{}s'.format(time.time()-starttime))
 
 
@@ -292,8 +293,9 @@ class CoverSheet(Sheet):
 
 
 if __name__ == '__main__':
-    # testsheet = AnswerSheet('test_images/IMG_0792.jpg')
-    testsheet = AnswerSheet('test_images/IMG_0811.jpg')
+    testsheet = AnswerSheet('../test_images/IMG_0815.jpg')
+    #testsheet = AnswerSheet('../test_images/IMG_0797.jpg')
+    #testsheet = AnswerSheet('../test_images/IMG_0811.jpg')
     # testsheet.drawRect()
     testsheet.run()
 

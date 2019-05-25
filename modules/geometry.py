@@ -33,7 +33,7 @@ def detectCrossinCell(img, rect):
     lines = cv.HoughLinesP(
         img[leftupperCorn[0, 1]+erode:rightlowerCorn[0, 1]-erode,
             leftupperCorn[0, 0]+erode:rightlowerCorn[0, 0]-erode],
-        1, np.pi/20, 7, minLineLength=10)
+        1, np.pi/50, 20, minLineLength=8, maxLineGap=2)
     if lines is None:
         return iscrossincell, isabnormal, lines
     else:
@@ -51,13 +51,23 @@ def detectCrossinCell(img, rect):
                 segmented_lines[0], segmented_lines[1])
             if intersections.shape[0] != 0:
                 iscrossincell = isLineinOneCluster(intersections)
-            return iscrossincell, isabnormal, lines
+                return iscrossincell, isabnormal, lines
+            else:
+                intersections = _findIntersections2LineGroup2(
+                    segmented_lines[0], segmented_lines[1])
+                if intersections is not None:
+                    iscrossincell = True
+                    return iscrossincell, isabnormal, lines
+                else:
+                    return False, isabnormal, lines
+
+
 
 
 def isLineinOneCluster(X):
     '''
     '''
-    distance_threshold = 10
+    distance_threshold = 20
     distance_matrix = scid.cdist(X, X)
     result = {}
     current_stack = [0]
@@ -142,6 +152,56 @@ def _intersection(lineA, lineB, isLineSegment=True):
             return point
         else:
             return None
+
+def _findIntersections2LineGroup2(line_groupA, line_groupB):
+    points_pos = []
+    points_neg = []
+
+
+
+    for line_a in line_groupA:
+        x1, y1, x2, y2 = line_a
+        points_pos.append([x1, y1])
+        points_pos.append([x2, y2])
+
+    for line_b in line_groupB:
+        x1, y1, x2, y2 = line_b
+        points_neg.append([x1, y1])
+        points_neg.append([x2, y2])
+    points_neg_np = np.array(points_neg)
+    points_pos_np = np.array(points_pos)
+
+    #fit lines, vx, vy are normalize vector, x, y is a point on the line
+    [vx_pos, vy_pos, x_pos, y_pos] = cv.fitLine(points_pos_np, cv.DIST_HUBER, 0, 0.01, 0.01)
+    [vx_neg, vy_neg, x_neg, y_neg] = cv.fitLine(points_neg_np, cv.DIST_HUBER, 0, 0.01, 0.01)
+
+    # y = k*x+b calculate k, b
+    slope_pos = vy_pos/vx_pos
+    slope_neg = vy_neg/vx_neg
+    bias_pos = y_pos - slope_pos * x_pos
+    bias_neg = y_neg - slope_neg * x_neg
+    # intersection of these 2 lines
+    point_x = (bias_neg-bias_pos)/(slope_pos-slope_neg)
+    point_y = point_x * slope_pos + bias_pos
+    # sort, in order to find out the 4 verticies of the cross
+    points_pos.sort()
+    points_neg.sort()
+    bottomleft = points_pos[0]
+    bottomright = points_neg[len(points_neg)-1]
+    upperleft = points_neg[0]
+    upperright = points_pos[len(points_pos)-1]
+
+    # error set to 6 pixels, in order to avoid the case that hough transform can only detect the lines on bottom(or others) half of the cross
+    if point_x <= bottomright[0]+6\
+        and point_x>=bottomleft[0]-6\
+        and point_y <= upperleft[1]+6\
+        and point_y >= bottomleft[1]-6:
+        point = [int(point_x), int(point_y)]
+        return point
+    else:
+        return None
+
+
 
 
 if __name__ == '__main__':
