@@ -35,13 +35,13 @@ class Sheet:
 
 
 class AnswerSheet(Sheet):
-    def __init__(self, *args, nquestions = 33,**kwargs):
+    def __init__(self, *args, nquestions=33, **kwargs):
         self.nquestions = nquestions
         super().__init__(*args, **kwargs)
 
     def _findContours(self):
         # set morphology structures size
-        structsize = int(self.img_gray.shape[1]/40)
+        structsize = int(self.img_gray.shape[1]/80)
 
         # hsize for horizontal lines, vsize for vertical lines
         hsize = (structsize, 1)
@@ -184,13 +184,13 @@ class AnswerSheet(Sheet):
             if table[i] is not None:
                 # skip the first column
                 for j in range(1, 5):
-                    iscrossincell, isabnormal, lines = geometry.detectCrossinCell(
+                    iscrossincell, isabnormal, lines, intersections = geometry.detectCrossinCell(
                         img_bi, table[i][j, :-1, :, :])
                     img_gray_3channel = self.img_gray_3channel
                     if lines is not None:
                         if isabnormal:
-                            linecolor = (0, 0, 255)
-                        elif iscrossincell: 
+                            linecolor = (255, 0, 0)
+                        elif iscrossincell:
                             linecolor = (214, 44, 152)
                         else:
                             linecolor = (20, 255, 20)
@@ -202,15 +202,17 @@ class AnswerSheet(Sheet):
                                 (line[0, 2], line[0, 3]),
                                 linecolor,
                                 2)
-                            cv.imshow('lines found', img_gray_3channel)
-                            cv.waitKey(1)
-        cv.imwrite('res_0792.png', self.img_gray_3channel)
-                    # if the cell contains abnormal situation, the detection
-                    # should skip current row
-                    # if detected_cross is None:
-                    #     break
-                    # else:
-                    #     self.detected_crosses[i, j] = detected_cross
+                            # cv.imshow('lines found', img_gray_3channel)
+                            # cv.waitKey(1)
+                        if intersections is not None:
+                            for intersection in intersections:
+                                cv.circle(img_gray_3channel,
+                                          (int(intersection[0]), int(
+                                              intersection[1])),
+                                          2, (0, 0, 255), -1)
+                                # cv.imshow('lines found', img_gray_3channel)
+                                # cv.waitKey(1)
+        cv.imwrite('results/res_0816.png', self.img_gray_3channel)
 
     def drawTable(self):
         gray_3channel = self.img_gray_3channel.copy()
@@ -295,21 +297,11 @@ class CoverSheet(Sheet):
 
 
 if __name__ == '__main__':
+    # testsheet = AnswerSheet('test_images/IMG_0792.jpg')
+    # testsheet = AnswerSheet('test_images/IMG_0795.jpg')
     # testsheet = AnswerSheet('test_images/IMG_0797.jpg')
-    testsheet = AnswerSheet('test_images/IMG_0811.jpg')
+    # testsheet = AnswerSheet('test_images/IMG_0799.jpg')
+    # testsheet = AnswerSheet('test_images/IMG_0811.jpg')
+    testsheet = AnswerSheet('test_images/IMG_0816.jpg')
     # testsheet.drawRect()
     testsheet.run()
-
-    # testsheet.mapRect2Table()
-    # testsheet.hough_trans()
-    # testsheet.drawRect()
-    # testsheet.findRects()
-    # lines = testsheet.hough_trans_ROI(testsheet.rects[12])
-    # for line in lines:
-    #     x1, y1, x2, y2 = line.flatten()
-    #     cv.line(testsheet.gray_3channel, (x1, y1), (x2, y2), (255, 0, 0), 4)
-
-    # cv.drawContours(testsheet.gray_3channel, [
-    #                 testsheet.rects[12]], -1, (255, 0, 0), 3)
-    # cv.imshow('show lines', testsheet.gray_3channel)
-    # cv.waitKey(0)

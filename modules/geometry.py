@@ -17,6 +17,7 @@ def detectCrossinCell(img, rect):
     iscrossincell = False
     isabnormal = False
     lines = None
+    intersections = None
     if not isinstance(img, np.ndarray) or not isinstance(rect, np.ndarray):
         raise Exception(' the type of image or rectangular is not np.ndarray')
     if rect.shape[0] != 4:
@@ -35,7 +36,7 @@ def detectCrossinCell(img, rect):
             leftupperCorn[0, 0]+erode:rightlowerCorn[0, 0]-erode],
         1, np.pi/50, 20, minLineLength=8, maxLineGap=2)
     if lines is None:
-        return iscrossincell, isabnormal, lines
+        return iscrossincell, isabnormal, lines,intersections
     else:
         # add offset to get absolute coordinates
         lines[:, :, [0, 2]] = leftupperCorn[0, 0]+erode+lines[:, :, [0, 2]]
@@ -45,29 +46,27 @@ def detectCrossinCell(img, rect):
         #  lines can not be segmented into 2 groups
         if segmented_lines is None:
             isabnormal = True
-            return iscrossincell, isabnormal, lines
+            return iscrossincell, isabnormal, lines, intersections
         else:
-            intersections = _findIntersections2LineGroup(
+            intersections = _findIntersections2LineGroups(
                 segmented_lines[0], segmented_lines[1])
             if intersections.shape[0] != 0:
                 iscrossincell = isLineinOneCluster(intersections)
-                return iscrossincell, isabnormal, lines
+                return iscrossincell, isabnormal, lines, intersections
             else:
                 intersections = _findIntersections2LineGroup2(
                     segmented_lines[0], segmented_lines[1])
                 if intersections is not None:
                     iscrossincell = True
-                    return iscrossincell, isabnormal, lines
+                    return iscrossincell, isabnormal, lines, intersections
                 else:
-                    return False, isabnormal, lines
-
-
+                    return False, isabnormal, lines, intersections
 
 
 def isLineinOneCluster(X):
     '''
     '''
-    distance_threshold = 20
+    distance_threshold = 5
     distance_matrix = scid.cdist(X, X)
     result = {}
     current_stack = [0]
@@ -96,8 +95,8 @@ def _segmentLines(lines):
     return  lines with positive slope, lines with negative slope
     '''
     slopes = (lines[:, :, 3]-lines[:, :, 1])/(lines[:, :, 2]-lines[:, :, 0])
-    slope_positive = slopes >= 0
-    slope_negative = slopes < 0
+    slope_positive = slopes >= 0.1
+    slope_negative = slopes < -0.1
     lines_pos, lines_neg = lines[slope_positive, :], lines[slope_negative, :]
     if lines_pos.shape[0] != 0 and lines_neg.shape[0] != 0:
         return lines_pos, lines_neg
@@ -105,7 +104,7 @@ def _segmentLines(lines):
         return None
 
 
-def _findIntersections2LineGroup(line_groupA, line_groupB):
+def _findIntersections2LineGroups(line_groupA, line_groupB):
     '''
     _intersection_2LineGroup(line_groupA,line_groupB)=> ndarry shape:(N,2)
     return all intersections of lines in two groups
@@ -153,11 +152,10 @@ def _intersection(lineA, lineB, isLineSegment=True):
         else:
             return None
 
+
 def _findIntersections2LineGroup2(line_groupA, line_groupB):
     points_pos = []
     points_neg = []
-
-
 
     for line_a in line_groupA:
         x1, y1, x2, y2 = line_a
@@ -171,9 +169,11 @@ def _findIntersections2LineGroup2(line_groupA, line_groupB):
     points_neg_np = np.array(points_neg)
     points_pos_np = np.array(points_pos)
 
-    #fit lines, vx, vy are normalize vector, x, y is a point on the line
-    [vx_pos, vy_pos, x_pos, y_pos] = cv.fitLine(points_pos_np, cv.DIST_HUBER, 0, 0.01, 0.01)
-    [vx_neg, vy_neg, x_neg, y_neg] = cv.fitLine(points_neg_np, cv.DIST_HUBER, 0, 0.01, 0.01)
+    # fit lines, vx, vy are normalize vector, x, y is a point on the line
+    [vx_pos, vy_pos, x_pos, y_pos] = cv.fitLine(
+        points_pos_np, cv.DIST_HUBER, 0, 0.01, 0.01)
+    [vx_neg, vy_neg, x_neg, y_neg] = cv.fitLine(
+        points_neg_np, cv.DIST_HUBER, 0, 0.01, 0.01)
 
     # y = k*x+b calculate k, b
     slope_pos = vy_pos/vx_pos
@@ -193,15 +193,13 @@ def _findIntersections2LineGroup2(line_groupA, line_groupB):
 
     # error set to 6 pixels, in order to avoid the case that hough transform can only detect the lines on bottom(or others) half of the cross
     if point_x <= bottomright[0]+6\
-        and point_x>=bottomleft[0]-6\
-        and point_y <= upperleft[1]+6\
-        and point_y >= bottomleft[1]-6:
+            and point_x >= bottomleft[0]-6\
+            and point_y <= upperleft[1]+6\
+            and point_y >= bottomleft[1]-6:
         point = [int(point_x), int(point_y)]
         return point
     else:
         return None
-
-
 
 
 if __name__ == '__main__':
