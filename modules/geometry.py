@@ -36,7 +36,7 @@ def detectCrossinCell(img, rect):
             leftupperCorn[0, 0]+erode:rightlowerCorn[0, 0]-erode],
         1, np.pi/50, 20, minLineLength=8, maxLineGap=2)
     if lines is None:
-        return iscrossincell, isabnormal, lines,intersections
+        return iscrossincell, isabnormal, lines, intersections
     else:
         # add offset to get absolute coordinates
         lines[:, :, [0, 2]] = leftupperCorn[0, 0]+erode+lines[:, :, [0, 2]]
@@ -51,7 +51,20 @@ def detectCrossinCell(img, rect):
             intersections = _findIntersections2LineGroups(
                 segmented_lines[0], segmented_lines[1])
             if intersections.shape[0] != 0:
-                iscrossincell = isLineinOneCluster(intersections)
+                # too many intersections means that student
+                # wanna to correct answer
+                if intersections.shape[0] > 45:
+                    iscrossincell = False
+                else:
+                    iscrossincell = isLineinOneCluster(intersections)
+                    # in case all intersections though can be segmented
+                    # into one cluster but is not concentrated
+                    if iscrossincell:
+                        center = np.mean(intersections, axis=0)
+                        centered_intersections = intersections - center
+                        iscrossincell = np.max(np.sum(
+                            np.abs(centered_intersections), axis=1
+                        )) < 20
                 return iscrossincell, isabnormal, lines, intersections
             else:
                 intersections = _findIntersections2LineGroup2(
@@ -203,4 +216,4 @@ def _findIntersections2LineGroup2(line_groupA, line_groupB):
 
 
 if __name__ == '__main__':
-    print(intersection((1, 1, 10, 10), (2, 0, 2, 1)))
+    pass

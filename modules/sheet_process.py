@@ -41,7 +41,7 @@ class AnswerSheet(Sheet):
 
     def _findContours(self):
         # set morphology structures size
-        structsize = int(self.img_gray.shape[1]/80)
+        structsize = int(self.img_gray.shape[1]/30)
 
         # hsize for horizontal lines, vsize for vertical lines
         hsize = (structsize, 1)
@@ -176,10 +176,11 @@ class AnswerSheet(Sheet):
         kernel = np.ones((2, 2), np.uint8)
         img_bi = cv.erode(img_bi, kernel, iterations=1)
         # skip the first row
-        table = self.table[1:]
+        table = self.table
         self.detected_crosses = np.zeros((self.nquestions, 4), dtype=bool)
         cv.namedWindow('lines found', cv.WINDOW_NORMAL)
-        for i in range(0, self.nquestions):
+        # iterate from 1st to last question 
+        for i in range(1, self.nquestions+1):
             # skip the chopped off rows
             if table[i] is not None:
                 # skip the first column
@@ -212,7 +213,7 @@ class AnswerSheet(Sheet):
                                           2, (0, 0, 255), -1)
                                 # cv.imshow('lines found', img_gray_3channel)
                                 # cv.waitKey(1)
-        cv.imwrite('results/res_0816.png', self.img_gray_3channel)
+        cv.imwrite('results/res_0918.png', self.img_gray_3channel)
 
     def drawTable(self):
         gray_3channel = self.img_gray_3channel.copy()
@@ -283,6 +284,14 @@ class AnswerSheet(Sheet):
         print('needed time: {}'.format((elapsed_time-starttime)*260))
         return lines
 
+    def showImg(self):
+        self.run()
+        self.drawRect()
+        cv.namedWindow('IMG', cv.WINDOW_NORMAL)
+        cv.imshow('IMG', self.result_binary)
+        cv.waitKey()
+        cv.destroyAllWindows()
+
     def run(self):
         starttime = time.time()
         self.findRects()
@@ -302,6 +311,6 @@ if __name__ == '__main__':
     # testsheet = AnswerSheet('test_images/IMG_0797.jpg')
     # testsheet = AnswerSheet('test_images/IMG_0799.jpg')
     # testsheet = AnswerSheet('test_images/IMG_0811.jpg')
-    testsheet = AnswerSheet('test_images/IMG_0816.jpg')
-    # testsheet.drawRect()
-    testsheet.run()
+    testsheet = AnswerSheet('test_images/IMG_0919.jpg')
+    # testsheet.run()
+    testsheet.showImg()
