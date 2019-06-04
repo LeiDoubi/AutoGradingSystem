@@ -156,7 +156,6 @@ class AnswerSheet(Sheet):
             else:
                 self.table.append(None)
                 while idx+4 < rects.shape[0]:
-                    idx = idx + 1
                     # print(rects[idx, 4, :, 1], (y_mc_lastLine+height_cell*2))
                     isCellInNextLine = np.abs(
                         rects[idx, 4, :, 1]-(y_mc_lastLine+height_cell*2)
@@ -165,6 +164,7 @@ class AnswerSheet(Sheet):
                         # update the y of centriods in last line
                         y_mc_lastLine = y_mc_lastLine+height_cell
                         break
+                    idx = idx + 1
 
     def detectCrosses1(self):
         '''
@@ -179,7 +179,7 @@ class AnswerSheet(Sheet):
         table = self.table
         self.detected_crosses = np.zeros((self.nquestions, 4), dtype=bool)
         cv.namedWindow('lines found', cv.WINDOW_NORMAL)
-        # iterate from 1st to last question 
+        # iterate from 1st to last question
         for i in range(1, self.nquestions+1):
             # skip the chopped off rows
             if table[i] is not None:
@@ -312,5 +312,5 @@ if __name__ == '__main__':
     # testsheet = AnswerSheet('test_images/IMG_0799.jpg')
     # testsheet = AnswerSheet('test_images/IMG_0811.jpg')
     testsheet = AnswerSheet('test_images/IMG_0919.jpg')
-    # testsheet.run()
-    testsheet.showImg()
+    testsheet.run()
+    # testsheet.showImg()
