@@ -1,7 +1,8 @@
 import numpy as np
 import cv2 as cv
-import geometry
+from . import geometry
 import time
+import os
 
 
 class Sheet:
@@ -30,14 +31,31 @@ class Sheet:
                 cv.THRESH_BINARY_INV, 11, 2)
         else:
             _, self.img_bi = cv.threshold(
-                self.img_blur, 190, 255, cv.THRESH_BINARY_INV)
+                self.img_blur, 210, 255, cv.THRESH_BINARY_INV)
         pass
 
 
 class AnswerSheet(Sheet):
-    def __init__(self, *args, nquestions=33, **kwargs):
+    def __init__(
+            self,
+            img_path,
+            nquestions=33,
+            save_result=True,
+            dst_dir_path='results/',
+            dst_file_name=None,
+            *args,
+            **kwargs):
         self.nquestions = nquestions
-        super().__init__(*args, **kwargs)
+        if dst_file_name is None:
+            self.dst_img_path = os.path.join(
+                dst_dir_path,
+                os.path.basename(img_path))
+        else:
+            self.dst_img_path = os.path.join(
+                dst_dir_path,
+                dst_file_name)
+        self.save_result = save_result
+        super().__init__(img_path, *args, **kwargs)
 
     def _findContours(self):
         # set morphology structures size
@@ -62,10 +80,9 @@ class AnswerSheet(Sheet):
         self.result_binary = cv.addWeighted(
             img_gray_horizon, 1, img_gray_vertical, 1, 0)
         pass
-        # find contours
-        self._contours, self._hierarchy = cv.findContours(
+        # find contours and be compatible with different version of opencv
+        self._contours, self._hierarchy, *_ = cv.findContours(
             self.result_binary, cv.RETR_CCOMP, cv.CHAIN_APPROX_SIMPLE)
-        pass
 
     def findRects(self):
         # make sure contours exists
@@ -86,7 +103,7 @@ class AnswerSheet(Sheet):
             Save the vertices of every found rectangles in ndarry
         '''
         self.table = []
-        y_max_err = 18
+        y_max_err = 9
         if not hasattr(self, 'rects'):
             self.findRects()
         # mass center of cells
@@ -168,13 +185,14 @@ class AnswerSheet(Sheet):
 
     def detectCrosses1(self):
         '''
-        This function detect whether cross exist in the each cell within the lines \n
+        This function detect whether cross exist
+        in the each cell within the lines \n
         corresponding to from 1st question to last question
         '''
         _, img_bi = cv.threshold(
-            self.img_blur, 100, 255, cv.THRESH_BINARY_INV)
+            self.img_blur, 190, 255, cv.THRESH_BINARY_INV)
         kernel = np.ones((2, 2), np.uint8)
-        img_bi = cv.erode(img_bi, kernel, iterations=1)
+        # img_bi = cv.erode(img_bi, kernel, iterations=1)
         # skip the first row
         table = self.table
         self.detected_crosses = np.zeros((self.nquestions, 4), dtype=bool)
@@ -186,7 +204,7 @@ class AnswerSheet(Sheet):
                 # skip the first column
                 for j in range(1, 5):
                     iscrossincell, isabnormal, lines, intersections = geometry.detectCrossinCell(
-                        img_bi, table[i][j, :-1, :, :])
+                        self.img_bi, table[i][j, :-1, :, :])
                     img_gray_3channel = self.img_gray_3channel
                     if lines is not None:
                         if isabnormal:
@@ -213,7 +231,8 @@ class AnswerSheet(Sheet):
                                           2, (0, 0, 255), -1)
                                 # cv.imshow('lines found', img_gray_3channel)
                                 # cv.waitKey(1)
-        cv.imwrite('results/res_0918.png', self.img_gray_3channel)
+        if self.save_result:
+            cv.imwrite(self.dst_img_path, self.img_gray_3channel)
 
     def drawTable(self):
         gray_3channel = self.img_gray_3channel.copy()
@@ -248,6 +267,7 @@ class AnswerSheet(Sheet):
 
                     cv.imshow('Find cells', gray_3channel)
                     cv.waitKey(1)
+        cv.waitKey(0)
 
     def drawRect(self, time=200):
 
@@ -285,8 +305,8 @@ class AnswerSheet(Sheet):
         return lines
 
     def showImg(self):
-        self.run()
-        self.drawRect()
+        # self.run()
+        # self.drawRect()
         # self._findContours()
         cv.namedWindow('IMG', cv.WINDOW_NORMAL)
         cv.imshow('IMG', self.img_bi)
@@ -297,8 +317,8 @@ class AnswerSheet(Sheet):
         starttime = time.time()
         self.findRects()
         self.mapRects2Table()
-        self.drawTable()
-        # self.detectCrosses1()
+        # self.drawTable()
+        self.detectCrosses1()
         print('needed time:{}s'.format(time.time()-starttime))
 
 
@@ -312,6 +332,6 @@ if __name__ == '__main__':
     # testsheet = AnswerSheet('test_images/IMG_0797.jpg')
     # testsheet = AnswerSheet('test_images/IMG_0799.jpg')
     # testsheet = AnswerSheet('test_images/IMG_0811.jpg')
-    testsheet = AnswerSheet('scan/scan-02.jpg')
+    testsheet = AnswerSheet('scan/scan-04.jpg')
     testsheet.run()
     # testsheet.showImg()

@@ -30,11 +30,11 @@ def detectCrossinCell(img, rect):
         (rect_float[:, :, 0]**2+rect_float[:, :, 1]**2).flatten())
     leftupperCorn = rect[index_sorted[0], :, :]
     rightlowerCorn = rect[index_sorted[-1], :, :]
-    erode = 7
+    erode = 2
     lines = cv.HoughLinesP(
         img[leftupperCorn[0, 1]+erode:rightlowerCorn[0, 1]-erode,
             leftupperCorn[0, 0]+erode:rightlowerCorn[0, 0]-erode],
-        1, np.pi/50, 20, minLineLength=8, maxLineGap=2)
+        1, np.pi/150, 20, minLineLength=4, maxLineGap=3)
     if lines is None:
         return iscrossincell, isabnormal, lines, intersections
     else:
@@ -53,7 +53,7 @@ def detectCrossinCell(img, rect):
             if intersections.shape[0] != 0:
                 # too many intersections means that student
                 # wanna to correct answer
-                if intersections.shape[0] > 45:
+                if intersections.shape[0] > 30:
                     iscrossincell = False
                 else:
                     iscrossincell = isLineinOneCluster(intersections)
@@ -63,8 +63,8 @@ def detectCrossinCell(img, rect):
                         center = np.mean(intersections, axis=0)
                         centered_intersections = intersections - center
                         iscrossincell = np.max(np.sum(
-                            np.abs(centered_intersections), axis=1
-                        )) < 20
+                            centered_intersections**2, axis=1
+                        )) < 35
                 return iscrossincell, isabnormal, lines, intersections
             else:
                 intersections = _findIntersections2LineGroup2(
@@ -143,7 +143,7 @@ def _intersection(lineA, lineB, isLineSegment=True):
     --               --  --   --      --                   --
     return (x, y) if intersction exists else None
     '''
-    allowed_error = 4
+    allowed_error = 2
     x1, y1, x2, y2 = lineA
     x3, y3, x4, y4 = lineB
     coff = np.array([[y2-y1, x1-x2], [y4-y3, x3-x4]])
@@ -204,7 +204,8 @@ def _findIntersections2LineGroup2(line_groupA, line_groupB):
     upperleft = points_neg[0]
     upperright = points_pos[len(points_pos)-1]
 
-    # error set to 6 pixels, in order to avoid the case that hough transform can only detect the lines on bottom(or others) half of the cross
+    # error set to 6 pixels, in order to avoid the case that hough transform 
+    # can only detect the lines on bottom(or others) half of the cross
     if point_x <= bottomright[0]+6\
             and point_x >= bottomleft[0]-6\
             and point_y <= upperleft[1]+6\
