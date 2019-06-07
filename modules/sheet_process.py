@@ -30,7 +30,7 @@ class Sheet:
                 cv.THRESH_BINARY_INV, 11, 2)
         else:
             _, self.img_bi = cv.threshold(
-                self.img_blur, 100, 255, cv.THRESH_BINARY_INV)
+                self.img_blur, 190, 255, cv.THRESH_BINARY_INV)
         pass
 
 
@@ -241,7 +241,7 @@ class AnswerSheet(Sheet):
                         (cellsInLine[j, 4, :, 0]-20,
                          cellsInLine[j, 4, :, 1]+15),
                         cv.FONT_HERSHEY_PLAIN,
-                        3,
+                        2,
                         (20, 20, 255),
                         4
                     )
@@ -287,8 +287,9 @@ class AnswerSheet(Sheet):
     def showImg(self):
         self.run()
         self.drawRect()
+        # self._findContours()
         cv.namedWindow('IMG', cv.WINDOW_NORMAL)
-        cv.imshow('IMG', self.result_binary)
+        cv.imshow('IMG', self.img_bi)
         cv.waitKey()
         cv.destroyAllWindows()
 
@@ -296,8 +297,8 @@ class AnswerSheet(Sheet):
         starttime = time.time()
         self.findRects()
         self.mapRects2Table()
-        # self.drawTable()
-        self.detectCrosses1()
+        self.drawTable()
+        # self.detectCrosses1()
         print('needed time:{}s'.format(time.time()-starttime))
 
 
@@ -311,6 +312,6 @@ if __name__ == '__main__':
     # testsheet = AnswerSheet('test_images/IMG_0797.jpg')
     # testsheet = AnswerSheet('test_images/IMG_0799.jpg')
     # testsheet = AnswerSheet('test_images/IMG_0811.jpg')
-    testsheet = AnswerSheet('test_images/IMG_0919.jpg')
+    testsheet = AnswerSheet('scan/scan-02.jpg')
     testsheet.run()
     # testsheet.showImg()
