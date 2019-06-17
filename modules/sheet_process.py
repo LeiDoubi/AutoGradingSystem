@@ -55,6 +55,9 @@ class AnswerSheet(Sheet):
                 dst_dir_path,
                 dst_file_name)
         self.save_result = save_result
+        self.table_info = {'cell_w': None,
+                           'cell_h': None,
+                           'left_up_corner': [None, None]}  # w,h
         super().__init__(img_path, *args, **kwargs)
 
     def _findContours(self):
@@ -182,6 +185,19 @@ class AnswerSheet(Sheet):
                         y_mc_lastLine = y_mc_lastLine+height_cell
                         break
                     idx = idx + 1
+
+    def calculate_cell_w_h(self):
+        self.table_info['cell_w'] = (self.table[0][2:, -1, :, 0] -
+                                     self.table[0][1:-1, -1, :, 0]).mean()
+        for i in range(1, len(self.table)):
+            if self.table[i] is not None:
+                self.table_info['cell_h'] = \
+                    (self.table[i][:, -1, :, 1].mean() -
+                     self.table[0][:, -1, :, 1].mean())/i
+        self.table_info['left_up_corner'][0] = \
+            self.table[0][0, -1, :, 0] - self.table_info['cell_w']/2
+        self.table_info['left_up_corner'][1] = \
+            self.table[0][0, -1, :, 1] - self.table_info['cell_h']/2
 
     def detectCrosses1(self):
         '''
@@ -317,10 +333,10 @@ class AnswerSheet(Sheet):
         starttime = time.time()
         self.findRects()
         self.mapRects2Table()
+        self.calculate_cell_w_h()
         # self.drawTable()
         self.detectCrosses1()
         print('needed time:{}s'.format(time.time()-starttime))
-
 
 class CoverSheet(Sheet):
     pass
