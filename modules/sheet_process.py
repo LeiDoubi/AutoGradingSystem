@@ -198,6 +198,29 @@ class AnswerSheet(Sheet):
             self.table[0][0, -1, :, 0] - self.table_info['cell_w']/2
         self.table_info['left_up_corner'][1] = \
             self.table[0][0, -1, :, 1] - self.table_info['cell_h']/2
+            
+    def estimate_chopped_lines_center_h(self):
+    '''
+    return ndarry
+        shape:       N*2, 
+        1st col:     question Nr
+        2nd col:     corresponding vertical ordinate. 
+    '''
+    ordinate_question = []
+    if not hasattr(self, 'calculate_cell_w_h'):
+        self.calculate_cell_w_h()
+    cell_h = self.table_info['cell_h']
+    for idx, cell in enumerate(self.table):
+        if cell is None:
+            for idx_temp in reversed(range(idx)):
+                if self.table[idx_temp]:
+                    h = self.table[idx_temp][0, -1, 0, 1]+
+                    (idx-idx_temp)*cell_h
+                    ordinate_question.append(
+                        [idx, h])
+        if idx > self.question:
+            break
+    return np.array(ordinate_question)
 
 
     def detectCrosses1(self):

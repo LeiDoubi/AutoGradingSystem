@@ -4,5 +4,6 @@ __pycache__/
 AGS.code-workspace
 *.pptx
 results/*
+results\ copy/
 main.pdf
 .*
