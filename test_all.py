@@ -1,10 +1,9 @@
-import glob
 import os
-from modules.sheet_process import *
+from modules.sheet_process import AnswerSheet
 
-imgs_dir_path = 'scan/'
-os.mkdir('results')
-imgs_paths = glob.glob(imgs_dir_path+'*.jpg')
-for index in range(1, len(imgs_paths), 2):
-    answer_sheet = AnswerSheet(imgs_paths[index])
-    answer_sheet.run()
+dir_image = 'scan/'
+names_image = sorted(os.listdir(dir_image))
+paths_image = [os.path.join(dir_image, name) for name in names_image]
+for index in range(1, len(paths_image), 2):
+    answer_sheet = AnswerSheet(paths_image[index])
+    answer_sheet.run() 
