@@ -25,11 +25,8 @@ def detectCrossinCell(img, rect):
             'The given rect have the information of {} corners'
             .format(rect.shape[0]))
     # find the left-upper corner and right-lower corner
-    rect_float = rect.astype('float64')
-    index_sorted = np.argsort(
-        (rect_float[:, :, 0]**2+rect_float[:, :, 1]**2).flatten())
-    leftupperCorn = rect[index_sorted[0], :, :]
-    rightlowerCorn = rect[index_sorted[-1], :, :]
+    leftupperCorn = rect[0, ...]
+    rightlowerCorn = rect[3, ...]
     erode = 2
     lines = cv.HoughLinesP(
         img[leftupperCorn[0, 1]+erode:rightlowerCorn[0, 1]-erode,
@@ -204,7 +201,7 @@ def _findIntersections2LineGroup2(line_groupA, line_groupB):
     upperleft = points_neg[0]
     upperright = points_pos[len(points_pos)-1]
 
-    # error set to 6 pixels, in order to avoid the case that hough transform 
+    # error set to 6 pixels, in order to avoid the case that hough transform
     # can only detect the lines on bottom(or others) half of the cross
     if point_x <= bottomright[0]+6\
             and point_x >= bottomleft[0]-6\

@@ -40,7 +40,7 @@ class AnswerSheet(Sheet):
             self,
             img_path,
             nquestions=33,
-            save_result=False,
+            save_result=True,
             dst_dir_path='results/',
             dst_file_name=None,
             *args,
@@ -59,7 +59,8 @@ class AnswerSheet(Sheet):
                            'cell_h': None,
                            'left_up_corner': [None, None]}  # w,h
         # the answers of this sheet represented as a numpy array
-        self.answers = np.zeros((nquestions, 4), dtype=bool)
+        self.answers = None
+        self.default_map = None
         super().__init__(img_path, *args, **kwargs)
 
     def _findContours(self):
@@ -123,10 +124,11 @@ class AnswerSheet(Sheet):
         # last dim posx, posy
         rects = np.concatenate((np.array(self.rects, dtype=np.int16),
                                 mc), axis=1)
+        rects_float = rects.astype('f')
         for idx in range(len(rects)):
             index_sorted = np.argsort(
-                (rects[idx, :, :, 0]**2+rects[idx, :, :, 1]**2).flatten())
-            rects[idx, ...] = rects[idx, index_sorted, :, :]
+                (rects_float[idx, :-1, :, 0]**2+rects_float[idx, :-1, :, 1]**2).flatten())
+            rects[idx, :-1, :, :] = rects[idx, index_sorted, :, :]
         idx = 0
         idx_1st_Answer_row = 0
         # in case the number of detected cells in first line smaller than 5
@@ -227,21 +229,20 @@ class AnswerSheet(Sheet):
                 break
         return np.array(ordinate_question)
 
-    def detectCrosses(self, alpha=0.8):
+    def detectCrosses(self, alpha=0.2):
         '''
         This function detect whether cross exist
         in the each cell within the lines
         corresponding to from 1st question to last question
         '''
-        _, img_bi = cv.threshold(
-            self.img_blur, 190, 255, cv.THRESH_BINARY_INV)
-        # img_bi = cv.erode(img_bi, kernel, iterations=1)
-        # skip the first row
         table = self.table
-        self.detected_crosses = np.zeros((self.nquestions, 4), dtype=bool)
-        cv.namedWindow('lines found', cv.WINDOW_NORMAL)
+        self.answers = np.zeros((len(table), 4), dtype=bool)
+        overlay = self.img_gray_3channel.copy()
+        # index of the rows that from the n_question-th row on has content
+        self._inds_ContentInRow = set()
         # iterate from 1st to last question
-        for i in range(1, self.nquestions+1):
+
+        for i in range(1, len(table)):
             # skip the chopped off rows
             if table[i] is not None:
                 # skip the first column
@@ -249,13 +250,14 @@ class AnswerSheet(Sheet):
                     iscrossincell, isabnormal, lines, intersections = \
                         geometry.detectCrossinCell(
                             self.img_bi, table[i][j, :-1, :, :])
-                    overlay = self.img_gray_3channel.copy()
                     if lines is not None:
                         if isabnormal:
                             linecolor = (255, 0, 0)
                         elif iscrossincell:
                             linecolor = (214, 44, 152)
                             self.answers[i-1, j-1] = 1
+                            if i > self.nquestions:
+                                self._inds_ContentInRow.add(i)
                         else:
                             linecolor = (20, 255, 20)
                         for line in lines:
@@ -271,39 +273,25 @@ class AnswerSheet(Sheet):
                                           (int(intersection[0]), int(
                                               intersection[1])),
                                           2, (0, 0, 255), -1)
-                for i in range(1, self.nquestions+1):
-                    pass
-            # # skip the chopped off rows
-            # if table[i] is not None:
-            #     # skip the first column
-            #     for j in range(1, 5):
-            #         iscrossincell, isabnormal, lines, intersections = \
-            #             geometry.detectCrossinCell(
-            #                 self.img_bi, table[i][j, :-1, :, :])
-            #         overlay = self.img_gray_3channel.copy()
-            #         if lines is not None:
-            #             if isabnormal:
-            #                 linecolor = (255, 0, 0)
-            #             elif iscrossincell:
-            #                 linecolor = (214, 44, 152)
-            #                 self.answers[i-1, j-1] = 1
-            #             else:
-            #                 linecolor = (20, 255, 20)
-            #             for line in lines:
-            #                 cv.line(
-            #                     overlay,
-            #                     (line[0, 0], line[0, 1]),
-            #                     (line[0, 2], line[0, 3]),
-            #                     linecolor,
-            #                     2)
-            #             if intersections is not None:
-            #                 for intersection in intersections:
-            #                     cv.circle(overlay,
-            #                               (int(intersection[0]), int(
-            #                                   intersection[1])),
-            #                               2, (0, 0, 255), -1)
-        # if self.save_result:
-        #     cv.imwrite(self.dst_img_path, overlay)
+        self.img_cross_detected = cv.addWeighted(self.img_gray_3channel,
+                                                 1-alpha,
+                                                 overlay,
+                                                 alpha,
+                                                 0)
+        if self.save_result:
+            cv.imwrite(self.dst_img_path, self.img_cross_detected)
+        self._inds_ContentInRow = list(self._inds_ContentInRow)
+
+    def set_default_map(self):
+        inds_to_be_corrected_answers = []
+        for ind in range(1, 1+self.nquestions):
+            if self.table is None:
+                inds_to_be_corrected_answers.append(ind)
+        # if the lengh of both list are compatible, then set the default map
+        if len(self._inds_ContentInRow) == len(inds_to_be_corrected_answers):
+            self.default_map = np.array([inds_to_be_corrected_answers,
+                                         self._inds_ContentInRow],
+                                        dtype=np.int8).T
 
     def drawTable(self):
         gray_3channel = self.img_gray_3channel.copy()
@@ -391,10 +379,15 @@ class AnswerSheet(Sheet):
         self.calculate_cell_w_h()
         # self.drawTable()
         self.detectCrosses()
+        self.set_default_map()
         print('needed time:{}s'.format(time.time()-starttime))
 
 
 class CoverSheet(Sheet):
+    pass
+
+
+def add_map_info(img, img_original, dst_question_number, loc):
     pass
 
 
