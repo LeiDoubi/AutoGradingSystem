@@ -220,10 +220,11 @@ class AnswerSheet(Sheet):
         for idx, cell in enumerate(self.table):
             if cell is None:
                 for idx_temp in reversed(range(idx)):
-                    if self.table[idx_temp]:
-                        h = self.table[idx_temp][0, -1, 0, 1] + \
+                    if self.table[idx_temp] is not None:
+                        h = self.table[idx_temp][0, -1, 0, 1]+\
                             (idx-idx_temp)*cell_h
-                        ordinate_question.append([idx, h])
+                        ordinate_question.append(
+                            [idx, h])
                         break
             if idx > self.nquestions:
                 break
