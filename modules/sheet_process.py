@@ -40,7 +40,7 @@ class AnswerSheet(Sheet):
             self,
             img_path,
             nquestions=33,
-            save_result=True,
+            save_result=False,
             dst_dir_path='results/',
             dst_file_name=None,
             *args,
@@ -58,6 +58,8 @@ class AnswerSheet(Sheet):
         self.table_info = {'cell_w': None,
                            'cell_h': None,
                            'left_up_corner': [None, None]}  # w,h
+        # the answers of this sheet represented as a numpy array
+        self.answers = np.zeros((nquestions, 4), dtype=bool)
         super().__init__(img_path, *args, **kwargs)
 
     def _findContours(self):
@@ -121,7 +123,10 @@ class AnswerSheet(Sheet):
         # last dim posx, posy
         rects = np.concatenate((np.array(self.rects, dtype=np.int16),
                                 mc), axis=1)
-
+        for idx in range(len(rects)):
+            index_sorted = np.argsort(
+                (rects[idx, :, :, 0]**2+rects[idx, :, :, 1]**2).flatten())
+            rects[idx, ...] = rects[idx, index_sorted, :, :]
         idx = 0
         idx_1st_Answer_row = 0
         # in case the number of detected cells in first line smaller than 5
@@ -144,8 +149,8 @@ class AnswerSheet(Sheet):
         # use kmeans to estimate the height of cell
         kmeans_criteria = (cv.TERM_CRITERIA_EPS +
                            cv.TERM_CRITERIA_MAX_ITER, 10, 0.1)
-        pos_corners_firstLine = rects[idx:idx_1st_Answer_row, :-1, :, 1].reshape(
-            (idx_1st_Answer_row-idx)*4, 1)
+        pos_corners_firstLine = rects[idx:idx_1st_Answer_row, :-1, :, 1].\
+            reshape((idx_1st_Answer_row-idx)*4, 1)
         pos_corners_firstLine = pos_corners_firstLine.astype(np.float32)
         _, _, kmeans_centers = cv.kmeans(
             pos_corners_firstLine,
@@ -198,39 +203,38 @@ class AnswerSheet(Sheet):
             self.table[0][0, -1, :, 0] - self.table_info['cell_w']/2
         self.table_info['left_up_corner'][1] = \
             self.table[0][0, -1, :, 1] - self.table_info['cell_h']/2
-            
-    def estimate_chopped_lines_center_h(self):
-    '''
-    return ndarry
-        shape:       N*2, 
-        1st col:     question Nr
-        2nd col:     corresponding vertical ordinate. 
-    '''
-    ordinate_question = []
-    if not hasattr(self, 'calculate_cell_w_h'):
-        self.calculate_cell_w_h()
-    cell_h = self.table_info['cell_h']
-    for idx, cell in enumerate(self.table):
-        if cell is None:
-            for idx_temp in reversed(range(idx)):
-                if self.table[idx_temp]:
-                    h = self.table[idx_temp][0, -1, 0, 1]+
-                    (idx-idx_temp)*cell_h
-                    ordinate_question.append(
-                        [idx, h])
-        if idx > self.question:
-            break
-    return np.array(ordinate_question)
 
-    def detectCrosses1(self):
+    def estimate_chopped_lines_center_h(self):
+        '''
+        return ndarry
+            shape:       N*2, 
+            1st col:     question Nr
+            2nd col:     corresponding vertical ordinate. 
+        '''
+        ordinate_question = []
+        if not hasattr(self, 'calculate_cell_w_h'):
+            self.calculate_cell_w_h()
+        cell_h = self.table_info['cell_h']
+        for idx, cell in enumerate(self.table):
+            if cell is None:
+                for idx_temp in reversed(range(idx)):
+                    if self.table[idx_temp]:
+                        h = self.table[idx_temp][0, -1, 0, 1] + \
+                            (idx-idx_temp)*cell_h
+                        ordinate_question.append([idx, h])
+                        break
+            if idx > self.nquestions:
+                break
+        return np.array(ordinate_question)
+
+    def detectCrosses(self, alpha=0.8):
         '''
         This function detect whether cross exist
-        in the each cell within the lines \n
+        in the each cell within the lines
         corresponding to from 1st question to last question
         '''
         _, img_bi = cv.threshold(
             self.img_blur, 190, 255, cv.THRESH_BINARY_INV)
-        kernel = np.ones((2, 2), np.uint8)
         # img_bi = cv.erode(img_bi, kernel, iterations=1)
         # skip the first row
         table = self.table
@@ -242,36 +246,64 @@ class AnswerSheet(Sheet):
             if table[i] is not None:
                 # skip the first column
                 for j in range(1, 5):
-                    iscrossincell, isabnormal, lines, intersections = geometry.detectCrossinCell(
-                        self.img_bi, table[i][j, :-1, :, :])
-                    img_gray_3channel = self.img_gray_3channel
+                    iscrossincell, isabnormal, lines, intersections = \
+                        geometry.detectCrossinCell(
+                            self.img_bi, table[i][j, :-1, :, :])
+                    overlay = self.img_gray_3channel.copy()
                     if lines is not None:
                         if isabnormal:
                             linecolor = (255, 0, 0)
                         elif iscrossincell:
                             linecolor = (214, 44, 152)
+                            self.answers[i-1, j-1] = 1
                         else:
                             linecolor = (20, 255, 20)
                         for line in lines:
-                            pass
                             cv.line(
-                                img_gray_3channel,
+                                overlay,
                                 (line[0, 0], line[0, 1]),
                                 (line[0, 2], line[0, 3]),
                                 linecolor,
                                 2)
-                            # cv.imshow('lines found', img_gray_3channel)
-                            # cv.waitKey(1)
                         if intersections is not None:
                             for intersection in intersections:
-                                cv.circle(img_gray_3channel,
+                                cv.circle(overlay,
                                           (int(intersection[0]), int(
                                               intersection[1])),
                                           2, (0, 0, 255), -1)
-                                # cv.imshow('lines found', img_gray_3channel)
-                                # cv.waitKey(1)
-        if self.save_result:
-            cv.imwrite(self.dst_img_path, self.img_gray_3channel)
+                for i in range(1, self.nquestions+1):
+                    pass
+            # # skip the chopped off rows
+            # if table[i] is not None:
+            #     # skip the first column
+            #     for j in range(1, 5):
+            #         iscrossincell, isabnormal, lines, intersections = \
+            #             geometry.detectCrossinCell(
+            #                 self.img_bi, table[i][j, :-1, :, :])
+            #         overlay = self.img_gray_3channel.copy()
+            #         if lines is not None:
+            #             if isabnormal:
+            #                 linecolor = (255, 0, 0)
+            #             elif iscrossincell:
+            #                 linecolor = (214, 44, 152)
+            #                 self.answers[i-1, j-1] = 1
+            #             else:
+            #                 linecolor = (20, 255, 20)
+            #             for line in lines:
+            #                 cv.line(
+            #                     overlay,
+            #                     (line[0, 0], line[0, 1]),
+            #                     (line[0, 2], line[0, 3]),
+            #                     linecolor,
+            #                     2)
+            #             if intersections is not None:
+            #                 for intersection in intersections:
+            #                     cv.circle(overlay,
+            #                               (int(intersection[0]), int(
+            #                                   intersection[1])),
+            #                               2, (0, 0, 255), -1)
+        # if self.save_result:
+        #     cv.imwrite(self.dst_img_path, overlay)
 
     def drawTable(self):
         gray_3channel = self.img_gray_3channel.copy()
@@ -358,8 +390,9 @@ class AnswerSheet(Sheet):
         self.mapRects2Table()
         self.calculate_cell_w_h()
         # self.drawTable()
-        self.detectCrosses1()
+        self.detectCrosses()
         print('needed time:{}s'.format(time.time()-starttime))
+
 
 class CoverSheet(Sheet):
     pass
