@@ -386,9 +386,10 @@ class AnswerSheet(Sheet):
         self.findRects()
         self.mapRects2Table()
         self.calculate_cell_w_h()
-        # self.drawTable()
-        self.detectCrosses()
-        self.set_default_map()
+        self.drawTable()
+
+        # self.detectCrosses()
+        # self.set_default_map()
         print('needed time:{}s'.format(time.time()-starttime))
 
 

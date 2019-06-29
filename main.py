@@ -31,7 +31,7 @@ def grade_sheets(path_sheets,
     names_images = sorted(os.listdir(path_sheets))
     paths_images = [os.path.join(path_sheets, name) for name in names_images]
     # for index in range(int(len(paths_images)/2)-1, 0, -1):
-    for index in range(6, len(p_solutions)+1):
+    for index in range(11, len(p_solutions)+1):
         answer_sheet = AnswerSheet(paths_images[2*index+1])
         answer_sheet.run()
 
