@@ -20,12 +20,12 @@ def grad(id_student,
         os.mkdir(path_imgs_save)
     img_save = img_cross_detected.copy()
     points_sum = 0.0
-    for i, row in enumerate(answers_student):
-        if np.array_equal(row, answers_stand[i]):
+    for i, row in enumerate(answers_stand):
+        if np.array_equal(row, answers_student[i]):
             points_current = row.sum()*points_answers[i]
         else:
-            correct_answers = np.logical_and(row, answers_stand[i])
-            wrong_answers = row ^ correct_answers
+            correct_answers = np.logical_and(row, answers_student[i])
+            wrong_answers = answers_student[i] ^ correct_answers
             points_current = np.max(
                 [correct_answers.sum()*points_answers[i]
                  - wrong_answers.sum()*points_answers[i]/2, 0])

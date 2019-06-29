@@ -7,23 +7,26 @@ y1=0
 flag = 0
 mode = 0
 tomaptsk = 0
+x_temp = 0
+y_temp = 0
 
 def setCallback(img, table, img_orig, ordinate_questions,  tskmap, solutionmatrix):
-    global mode
+    global mode, x_temp, y_temp
     cv2.namedWindow('image', cv2.WINDOW_NORMAL)
     cv2.setMouseCallback('image', OnMouseAction)
     map_result = None
-    solution  = None
+    solution  = solutionmatrix
     while (1):
         cv2.imshow('image', img)
-
-        if(mode ==0):
-            if(x1>705)and(y1>353):
-               solution = calcPosition(100, 33, 638, 353, x1, y1, img, table, img_orig, solutionmatrix)
-        if (mode == 1):
-               if (x1<705) and (x1 > 573) and (y1>353):
-                map_result =  tskmapping(ordinate_questions, table, x1, y1, 353, 33, img, img_orig, tskmap)
-
+        if(x_temp!=x1) or (y_temp!=y1):
+            x_temp = x1
+            y_temp = y1
+            if(mode ==0):
+                if(x1>705)and(y1>353):
+                   solution = calcPosition(100, 33, 638, 353, x1, y1, img, table, img_orig, solutionmatrix)
+            if (mode == 1):
+                   if (x1<705) and (x1 > 573) and (y1>353):
+                    map_result =  tskmapping(ordinate_questions, table, x1, y1, 353, 33, img, img_orig, tskmap)
         k = cv2.waitKey(1)
         if k == ord('q'):
             break
@@ -50,6 +53,7 @@ def OnMouseAction(event, x, y, flags, param):
 
 
 def calcPosition(width, height, x_0, y_0, x, y, img_gray_3_channel, table, img_orig, solutionmatrix):
+    print(x, y)
 
     num_mom_left = int((x - x_0) / width)
 
@@ -67,6 +71,8 @@ def calcPosition(width, height, x_0, y_0, x, y, img_gray_3_channel, table, img_o
         aws = num_mom_left+1
     else:
         aws = num_mom_left
+    x = 0
+    y = 0
     if table[tsk] is not None:
         selected_rect = table[tsk][aws, :-1, :, :]
         rect_float = selected_rect.astype('float64')
@@ -108,6 +114,7 @@ def tskmapping(ordinate_question,table, x,  y, y_0, height, img_gray_3channel, i
         tomaptsk_y = y
         tomaptsk_x = x
     tsk_height = ordinate_question[:,1]
+
     if table[tomaptsk] is not None:
         selected_rect = table[tomaptsk][0, :-1, :, :]
         rect_float = selected_rect.astype('float64')
