@@ -63,8 +63,8 @@ class AnswerSheet(Sheet):
                            'cell_h': None,
                            'left_up_corner': [None, None]}  # w,h
         # the answers of this sheet represented as a numpy array
-        self.answers = None
-        self.default_map = None
+        self.answers = []
+        self.default_map = []
         super().__init__(img_path, *args, **kwargs)
 
     def _findContours(self):

@@ -8,19 +8,22 @@ flag = 0
 mode = 0
 tomaptsk = 0
 
-def setCallback(img, table, img_orig, ordinate_questions):
+def setCallback(img, table, img_orig, ordinate_questions,  tskmap, solutionmatrix):
     global mode
     cv2.namedWindow('image', cv2.WINDOW_NORMAL)
     cv2.setMouseCallback('image', OnMouseAction)
+    map_result = None
+    solution  = None
     while (1):
         cv2.imshow('image', img)
 
         if(mode ==0):
             if(x1>705)and(y1>353):
-                calcPosition(100, 33, 638, 353, x1, y1, img, table, img_orig)
+               solution = calcPosition(100, 33, 638, 353, x1, y1, img, table, img_orig, solutionmatrix)
         if (mode == 1):
                if (x1<705) and (x1 > 573) and (y1>353):
-                    tskmapping(ordinate_questions, table, x1, y1, 353, 33, img, img_orig)
+                map_result =  tskmapping(ordinate_questions, table, x1, y1, 353, 33, img, img_orig, tskmap)
+
         k = cv2.waitKey(1)
         if k == ord('q'):
             break
@@ -32,6 +35,7 @@ def setCallback(img, table, img_orig, ordinate_questions):
                 print('quit edit mode')
     cv2.destroyAllWindows()
 
+    return solution, map_result
 
 def OnMouseAction(event, x, y, flags, param):
     global x1, y1, flag
@@ -45,7 +49,7 @@ def OnMouseAction(event, x, y, flags, param):
 
 
 
-def calcPosition(width, height, x_0, y_0, x, y, img_gray_3_channel, table, img_orig):
+def calcPosition(width, height, x_0, y_0, x, y, img_gray_3_channel, table, img_orig, solutionmatrix):
 
     num_mom_left = int((x - x_0) / width)
 
@@ -70,11 +74,11 @@ def calcPosition(width, height, x_0, y_0, x, y, img_gray_3_channel, table, img_o
             (rect_float[:, :, 0] ** 2 + rect_float[:, :, 1] ** 2).flatten())
         leftupperCorn = selected_rect[index_sorted[0], :, :]
         rightlowerCorn = selected_rect[index_sorted[-1], :, :]
-        leftupper = (leftupperCorn[0,0], leftupperCorn[0,1])
-        rightbottom= (rightlowerCorn[0,0], rightlowerCorn[0,1])
+
 
         if flag == 1:
             if (tsk !=0) and (aws !=0):
+                solutionmatrix[tsk-1][aws-1]=True
                 for i in range(min(leftupperCorn[0,0], rightlowerCorn[0,0]), max(leftupperCorn[0,0], rightlowerCorn[0,0])):
                     for j in range(min(leftupperCorn[0,1], rightlowerCorn[0,1]), max(leftupperCorn[0,1], rightlowerCorn[0,1])):
                         img_gray_3_channel[j, i] = img_orig[j, i]
@@ -83,11 +87,13 @@ def calcPosition(width, height, x_0, y_0, x, y, img_gray_3_channel, table, img_o
                         img_gray_3_channel[j, i, 2] = img_gray_3_channel[j, i, 2] * 0.8 + 255 * 0.2
         elif flag == 2:
             if (tsk !=0) and (aws !=0):
+                solutionmatrix[tsk - 1][aws - 1] = False
                 for i in range(min(leftupperCorn[0,0], rightlowerCorn[0,0]), max(leftupperCorn[0,0], rightlowerCorn[0,0])):
                     for j in range(min(leftupperCorn[0,1], rightlowerCorn[0,1]), max(leftupperCorn[0,1], rightlowerCorn[0,1])):
                         img_gray_3_channel[j, i] = img_orig[j, i]
+    return solutionmatrix
 
-def tskmapping(ordinate_question,table, x,  y, y_0, height, img_gray_3channel, img_orig):
+def tskmapping(ordinate_question,table, x,  y, y_0, height, img_gray_3channel, img_orig, tskmap):
     global tomaptsk, tomaptsk_y, tomaptsk_x
 
     num_mom_upper = int((y - y_0) / height)
@@ -112,7 +118,10 @@ def tskmapping(ordinate_question,table, x,  y, y_0, height, img_gray_3channel, i
 
     idx = (np.abs(tsk_height - y)).argmin()
     if flag == 1:
-        if tsk == ordinate_question[idx][0] and tomaptsk !=0:
+        if tsk == ordinate_question[idx][0] and tomaptsk !=0 :
+            a = list(( tsk, tomaptsk,))
+            if not a in tskmap:
+                tskmap.append(a)
 
             cv2.putText(
                 img_gray_3channel,
@@ -123,12 +132,20 @@ def tskmapping(ordinate_question,table, x,  y, y_0, height, img_gray_3channel, i
                 (20, 20, 255),
                 4
             )
+
     elif flag == 2:
+
+        if tskmap is not None:
+            for i in range(-1, len(tskmap)-1):
+                if tskmap[i][1] == tomaptsk:
+                    del tskmap[i]
+
         for i in range(500, max(leftupperCorn[0,0], rightlowerCorn[0,0])):
             for j in range(min(leftupperCorn[0,1], rightlowerCorn[0,1]), max(leftupperCorn[0,1], rightlowerCorn[0,1])):
+
                 img_gray_3channel[j, i] = img_orig[j, i]
 
-
+    return tskmap
 
 
 
@@ -141,4 +158,4 @@ if __name__ == '__main__':
     test = cv2.imread('../results/scan-02.jpg')
     answer_sheet = AnswerSheet('../scan/scan-02.jpg')
     answer_sheet.run()
-    setCallback(test, answer_sheet.table, answer_sheet.img_original, answer_sheet.estimate_chopped_lines_center_h())
+

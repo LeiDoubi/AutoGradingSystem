@@ -3,6 +3,7 @@ from modules.sheet_process import AnswerSheet
 from modules.grader import grad
 import numpy as np
 import pandas as pd
+from modules.Interactive import setCallback
 
 
 def read_student_ids(path_ids):
@@ -28,13 +29,18 @@ def grade_sheets(path_sheets,
     points_sum_students = []
     names_images = sorted(os.listdir(path_sheets))
     paths_images = [os.path.join(path_sheets, name) for name in names_images]
-    for index in range(int(len(paths_images)/2)-1,0,-1):
+    #for index in range(int(len(paths_images)/2)-1, 0, -1):
+    for index in range(0,1):
         answer_sheet = AnswerSheet(paths_images[2*index+1])
         answer_sheet.run()
 
         map = answer_sheet.default_map
         answers_student = answer_sheet.answers.copy()[0:len(p_solutions), :]
+        answer_sheet_to_edit = answer_sheet.img_cross_detected.copy()
+        answers, map_result =setCallback(answer_sheet_to_edit, answer_sheet.table, answer_sheet.img_original, answer_sheet.estimate_chopped_lines_center_h(),
+                    map, answers_student)
         coordinates = [None]*len(p_solutions)
+
         if map is not None:
             for row in map:
                 answers_student[row[0]-1,
