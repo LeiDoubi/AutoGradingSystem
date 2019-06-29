@@ -4,6 +4,7 @@ from modules.grader import grad
 import numpy as np
 import pandas as pd
 from modules.Interactive import setCallback
+import cv2
 
 
 def read_student_ids(path_ids):
@@ -37,7 +38,7 @@ def grade_sheets(path_sheets,
         map = answer_sheet.default_map
         answers_student = answer_sheet.answers.copy()[0:len(p_solutions), :]
         answer_sheet_to_edit = answer_sheet.img_cross_detected.copy()
-        answers, map_result =setCallback(answer_sheet_to_edit, answer_sheet.table, answer_sheet.img_original, answer_sheet.estimate_chopped_lines_center_h(),
+        answers, map_result, img =setCallback(answer_sheet_to_edit, answer_sheet.table, answer_sheet.img_original, answer_sheet.estimate_chopped_lines_center_h(),
                     map, answers_student)
         coordinates = [None]*len(p_solutions)
 
