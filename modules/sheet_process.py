@@ -89,7 +89,9 @@ class AnswerSheet(Sheet):
             img_gray_vertical, structure_vertical, (-1, -1))
         self.result_binary = cv.addWeighted(
             img_gray_horizon, 1, img_gray_vertical, 1, 0)
-        pass
+        # add closing to eliminate the gap in case the horizontal line is broken.    
+        self.result_binary = cv.morphologyEx(
+            self.result_binary, cv.MORPH_CLOSE, np.ones((3, 7)))
         # find contours and be compatible with different version of opencv
         self._contours, self._hierarchy, *_ = cv.findContours(
             self.result_binary, cv.RETR_CCOMP, cv.CHAIN_APPROX_SIMPLE)
