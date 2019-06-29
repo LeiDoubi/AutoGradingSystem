@@ -30,22 +30,22 @@ def grade_sheets(path_sheets,
     points_sum_students = []
     names_images = sorted(os.listdir(path_sheets))
     paths_images = [os.path.join(path_sheets, name) for name in names_images]
-    #for index in range(int(len(paths_images)/2)-1, 0, -1):
-    for index in range(0,1):
+    # for index in range(int(len(paths_images)/2)-1, 0, -1):
+    for index in range(1, len(p_solutions)+1):
         answer_sheet = AnswerSheet(paths_images[2*index+1])
         answer_sheet.run()
 
-        map = answer_sheet.default_map
+        # map = answer_sheet.default_map
         answers_student = answer_sheet.answers.copy()[0:len(p_solutions), :]
         answer_sheet_to_edit = answer_sheet.img_cross_detected.copy()
-        answers, map_result, img =setCallback(answer_sheet_to_edit, answer_sheet.table, answer_sheet.img_original, answer_sheet.estimate_chopped_lines_center_h(),
-                    map, answers_student)
+        answers, map_result, img = setCallback(answer_sheet_to_edit, answer_sheet.table, answer_sheet.img_original, answer_sheet.estimate_chopped_lines_center_h(),
+                                               map, answers_student)
         coordinates = [None]*len(p_solutions)
 
-        if map is not None:
-            for row in map:
+        if map_result is not None:
+            for row in map_result:
                 answers_student[row[0]-1,
-                                :] = answer_sheet.answers[row[1]-1, :]
+                                :] = answers[row[1]-1, :]
                 coordinates[row[0]-1] = [answer_sheet.table[row[1]][4, -1, :, 0] +
                                          answer_sheet.table_info['cell_w'],
                                          answer_sheet.table[row[1]][4, -1, :, 1] +
@@ -61,7 +61,7 @@ def grade_sheets(path_sheets,
                       answers_student,
                       solutions,
                       path_imgs_save,
-                      answer_sheet.img_cross_detected,
+                      img,
                       coordinates,
                       p_solutions
                       )
