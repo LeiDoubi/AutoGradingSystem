@@ -89,7 +89,7 @@ class AnswerSheet(Sheet):
             img_gray_vertical, structure_vertical, (-1, -1))
         self.result_binary = cv.addWeighted(
             img_gray_horizon, 1, img_gray_vertical, 1, 0)
-        # add closing to eliminate the gap in case the horizontal line is broken.    
+        # add closing to eliminate the gap in case the horizontal line is broken.
         self.result_binary = cv.morphologyEx(
             self.result_binary, cv.MORPH_CLOSE, np.ones((3, 7)))
         # find contours and be compatible with different version of opencv
@@ -176,6 +176,12 @@ class AnswerSheet(Sheet):
             isFiveSuccessiveCellsInLine = np.all(
                 np.abs(rects[idx:idx+5, 4, 0, 1] -
                        ymean_mc_FiveCells) < y_max_err)
+            x_cells_sorted = np.sort(rects[idx:idx+5, 4, :, 0])
+            # the space between x of the tables must be bigger than a value
+            # since the width of the table is about 60 we take 10 here
+            isFiveSuccessiveCellsInLine = isFiveSuccessiveCellsInLine and \
+                np.all((x_cells_sorted[1:]-x_cells_sorted[:-1]) > 10)
+
             isFiveSuccessiveCellsInNextLine = np.abs(
                 ymean_mc_FiveCells -
                 (y_mc_lastLine+height_cell)) < y_max_err
