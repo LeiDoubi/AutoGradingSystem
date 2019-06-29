@@ -35,6 +35,10 @@ class Sheet:
         pass
 
 
+class Coversheet(Sheet):
+    pass
+
+
 class AnswerSheet(Sheet):
     def __init__(
             self,
@@ -127,7 +131,8 @@ class AnswerSheet(Sheet):
         rects_float = rects.astype('f')
         for idx in range(len(rects)):
             index_sorted = np.argsort(
-                (rects_float[idx, :-1, :, 0]**2+rects_float[idx, :-1, :, 1]**2).flatten())
+                (rects_float[idx, :-1, :, 0]**2 +
+                 rects_float[idx, :-1, :, 1]**2).flatten())
             rects[idx, :-1, :, :] = rects[idx, index_sorted, :, :]
         idx = 0
         idx_1st_Answer_row = 0
@@ -194,8 +199,9 @@ class AnswerSheet(Sheet):
                     idx = idx + 1
 
     def calculate_cell_w_h(self):
-        self.table_info['cell_w'] = (self.table[0][2:, -1, :, 0] -
-                                     self.table[0][1:-1, -1, :, 0]).mean()
+        w_sorted = np.sort(self.table[0][:, -1, :, 0].flatten())
+        self.table_info['cell_w'] = (w_sorted[2:] -
+                                     w_sorted[1:-1]).mean()
         for i in range(1, len(self.table)):
             if self.table[i] is not None:
                 self.table_info['cell_h'] = \
@@ -221,7 +227,7 @@ class AnswerSheet(Sheet):
             if cell is None:
                 for idx_temp in reversed(range(idx)):
                     if self.table[idx_temp] is not None:
-                        h = self.table[idx_temp][0, -1, 0, 1]+\
+                        h = self.table[idx_temp][0, -1, 0, 1] + \
                             (idx-idx_temp)*cell_h
                         ordinate_question.append(
                             [idx, h])
@@ -230,7 +236,7 @@ class AnswerSheet(Sheet):
                 break
         return np.array(ordinate_question)
 
-    def detectCrosses(self, alpha=0.2):
+    def detectCrosses(self, alpha=0.8):
         '''
         This function detect whether cross exist
         in the each cell within the lines
