@@ -35,7 +35,7 @@ def setCallback(img, table, img_orig, ordinate_questions,  tskmap, solutionmatri
                 print('quit edit mode')
     cv2.destroyAllWindows()
 
-    return solution, map_result
+    return solution, map_result, img
 
 def OnMouseAction(event, x, y, flags, param):
     global x1, y1, flag
@@ -134,7 +134,6 @@ def tskmapping(ordinate_question,table, x,  y, y_0, height, img_gray_3channel, i
             )
 
     elif flag == 2:
-
         if tskmap is not None:
             for i in range(-1, len(tskmap)-1):
                 if tskmap[i][1] == tomaptsk:
