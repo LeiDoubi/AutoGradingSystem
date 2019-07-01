@@ -396,7 +396,7 @@ class AnswerSheet(Sheet):
         self.mapRects2Table()
         self.calculate_cell_w_h()
         #self.drawTable()
-        self.drawRect()
+        #self.drawRect()
 
         self.detectCrosses()
         self.set_default_map()
