@@ -31,17 +31,22 @@ def grade_sheets(path_sheets,
     names_images = sorted(os.listdir(path_sheets))
     paths_images = [os.path.join(path_sheets, name) for name in names_images]
     # for index in range(int(len(paths_images)/2)-1, 0, -1):
-    for index in range(11, len(p_solutions)+1):
-        answer_sheet = AnswerSheet(paths_images[2*index+1])
+    for id_student, path_image in zip(ids_student, paths_images[1::2]):
+        answer_sheet = AnswerSheet(path_image)
         answer_sheet.run()
 
         # map = answer_sheet.default_map
         answers_student = answer_sheet.answers.copy()
         answer_sheet_to_edit = answer_sheet.img_cross_detected.copy()
-        print(answer_sheet.estimate_chopped_lines_center_h())
-        answers, map_result, img = setCallback(answer_sheet_to_edit, answer_sheet.table, answer_sheet.img_original, answer_sheet.estimate_chopped_lines_center_h(),
-                                               answer_sheet.default_map, answers_student)
-        coordinates = [None]*len(p_solutions)
+        # print(answer_sheet.estimate_chopped_lines_center_h())
+        answers, map_result, img = setCallback(
+            answer_sheet_to_edit,
+            answer_sheet.table,
+            answer_sheet.img_original,
+            answer_sheet.estimate_chopped_lines_center_h(),
+            answer_sheet.default_map,
+            answers_student)
+        coordinates = [None]*len(solutions)
 
         if map_result is not None:
             for row in map_result:
@@ -51,14 +56,15 @@ def grade_sheets(path_sheets,
                                          answer_sheet.table_info['cell_w'],
                                          answer_sheet.table[row[1]][4, -1, :, 1] +
                                          int(answer_sheet.table_info['cell_h']/2)]
-        for idx in range(len(p_solutions)):
+        for idx in range(len(solutions)):
+            # TOBEDELETED
             if answer_sheet.table[idx+1] is not None:
                 coordinates[idx] = [answer_sheet.table[idx+1][4, -1, :, 0] +
                                     answer_sheet.table_info['cell_w'],
                                     answer_sheet.table[idx+1][4, -1, :, 1] +
                                     int(answer_sheet.table_info['cell_h']/2)]
 
-        points = grad(ids_student[index],
+        points = grad(id_student,
                       answers_student,
                       solutions,
                       path_imgs_save,
