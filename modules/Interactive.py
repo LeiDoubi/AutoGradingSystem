@@ -22,10 +22,10 @@ def setCallback(img, table, img_orig, ordinate_questions,  tskmap, solutionmatri
             x_temp = x1
             y_temp = y1
             if(mode ==0):
-                if(x1>705)and(y1>353):
+                if(x1>705)and(y1>353) and (x1<1085) and (y1<2045):
                    solution = calcPosition(100, 33, 638, 353, x1, y1, img, table, img_orig, solutionmatrix)
             if (mode == 1):
-                   if (x1<705) and (x1 > 573) and (y1>353):
+                   if (x1<705) and (x1 > 573) and (y1>353) and (y1<2045):
                     map_result =  tskmapping(ordinate_questions, table, x1, y1, 353, 33, img, img_orig, tskmap)
         k = cv2.waitKey(1)
         if k == ord('q'):
@@ -45,6 +45,7 @@ def OnMouseAction(event, x, y, flags, param):
     if event == cv2.EVENT_LBUTTONDOWN:
         x1, y1 = x, y
         flag = 1
+        print(x, y)
     elif event == cv2.EVENT_RBUTTONDOWN:
         x1, y1 = x, y
         flag = 2
