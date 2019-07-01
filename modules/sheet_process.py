@@ -178,7 +178,7 @@ class AnswerSheet(Sheet):
             isFiveSuccessiveCellsInLine = np.all(
                 np.abs(rects[idx:idx+5, 4, 0, 1] -
                        ymean_mc_FiveCells) < y_max_err)
-            x_cells_sorted = np.sort(rects[idx:idx+5, 4, :, 0])
+            x_cells_sorted = np.sort(rects[idx:idx+5, 4, :, 0].flatten())
             # the space between x of the tables must be bigger than a value
             # since the width of the table is about 60 we take 10 here
             isFiveSuccessiveCellsInLine = isFiveSuccessiveCellsInLine and \
@@ -269,7 +269,7 @@ class AnswerSheet(Sheet):
                             self.img_bi, table[i][j, :-1, :, :])
                     if lines is not None:
                         if isabnormal:
-                            linecolor = (255, 0, 0)
+                            linecolor = (0, 0, 255)
                         elif iscrossincell:
                             linecolor = (214, 44, 152)
                             self.answers[i-1, j-1] = 1
@@ -395,12 +395,11 @@ class AnswerSheet(Sheet):
         self.findRects()
         self.mapRects2Table()
         self.calculate_cell_w_h()
-        #self.drawTable()
-        #self.drawRect()
 
         self.detectCrosses()
-        self.set_default_map()
-        print('needed time:{}s'.format(time.time()-starttime))
+        # self.set_default_map()
+        print('Processing sheet:  {}\tneeded time:{:4.3f}s'.
+              format(os.path.split(self.imgPath)[-1], time.time()-starttime))
 
 
 class CoverSheet(Sheet):
