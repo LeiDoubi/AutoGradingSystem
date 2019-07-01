@@ -83,12 +83,14 @@ class AnswerSheet(Sheet):
             self.img_bi, structure_horizon, (-1, -1))
         img_gray_horizon = cv.dilate(
             img_gray_horizon, structure_horizon, (-1, -1))
+        cv.imwrite('D:\img_horizon.png', img_gray_horizon)
         img_gray_vertical = cv.erode(
             self.img_bi, structure_vertical, (-1, -1))
         img_gray_vertical = cv.dilate(
             img_gray_vertical, structure_vertical, (-1, -1))
         self.result_binary = cv.addWeighted(
             img_gray_horizon, 1, img_gray_vertical, 1, 0)
+
         # add closing to eliminate the gap in case the horizontal line is broken.
         self.result_binary = cv.morphologyEx(
             self.result_binary, cv.MORPH_CLOSE, np.ones((3, 7)))
@@ -321,13 +323,13 @@ class AnswerSheet(Sheet):
         for i, cellsInLine in enumerate(table):
             if cellsInLine is not None:
                 for j in range(1, cellsInLine.shape[0]):
-                    cv.drawContours(
-                        gray_3channel,
-                        [cellsInLine[j, :-1, :, :].astype(np.int32)],
-                        -1,
-                        (255, 0, 0),
-                        3
-                    )
+                    #cv.drawContours(
+                        #gray_3channel,
+                       # [cellsInLine[j, :-1, :, :].astype(np.int32)],
+                       # -1,
+                        #(255, 0, 0),
+                       # 3
+                   # )
                     cv.putText(
                         gray_3channel,
                         str(i+1)+','+map_idx2char[j],
@@ -338,7 +340,7 @@ class AnswerSheet(Sheet):
                         (20, 20, 255),
                         4
                     )
-
+                    cv.namedWindow('Find cells', cv.WINDOW_NORMAL)
                     cv.imshow('Find cells', gray_3channel)
                     cv.waitKey(1)
         cv.waitKey(0)
@@ -355,6 +357,7 @@ class AnswerSheet(Sheet):
             cy = int(mm['m01'] / mm['m00'])
             cv.circle(gray_3channel, (cx, cy), 10, (0, 0, 255), -1)
             cv.drawContours(gray_3channel, [rect], -1, (255, 0, 0), 3)
+            cv.namedWindow('findRects', cv.WINDOW_NORMAL)
             cv.imshow('findRects', gray_3channel)
             if _ < len(self.rects)-1:
                 cv.waitKey(time)
@@ -392,10 +395,11 @@ class AnswerSheet(Sheet):
         self.findRects()
         self.mapRects2Table()
         self.calculate_cell_w_h()
-        self.drawTable()
+        #self.drawTable()
+        self.drawRect()
 
-        # self.detectCrosses()
-        # self.set_default_map()
+        self.detectCrosses()
+        self.set_default_map()
         print('needed time:{}s'.format(time.time()-starttime))
 
 
