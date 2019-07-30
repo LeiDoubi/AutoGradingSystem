@@ -2,7 +2,7 @@ from modules.grader import grade_sheets
 import numpy as np
 import pandas as pd
 from modules.Interactive import selectROI
-from modules.digits_recognization import recognize_digits_allsheets
+from modules.digits_recognition import recognize_digits_allsheets
 import os
 import cv2 as cv
 import shutil
@@ -59,7 +59,7 @@ if __name__ == '__main__':
     # do digit recognization on each cover sheet
     if digit_recognize_on:
         # mannually choose a the region of interest
-        hint = '''Please select the region that contains the digits string by draging a rectangular!!
+        hint = '''Please select the region that contains the digits string by dragging a rectangular!!
 you can left click on the image to reselect the region and press ENTER to confirm your selection'''
         print(hint)
         ROI = selectROI(paths_CoverSheets[0])
