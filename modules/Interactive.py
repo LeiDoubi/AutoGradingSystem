@@ -10,6 +10,7 @@ tomaptsk = 0
 x_temp = 0
 y_temp = 0
 
+
 def setCallback(img, table, img_orig, ordinate_questions,  tskmap, solutionmatrix):
     global mode, x_temp, y_temp
     cv2.namedWindow('image', cv2.WINDOW_NORMAL)
@@ -40,7 +41,7 @@ def setCallback(img, table, img_orig, ordinate_questions,  tskmap, solutionmatri
 
     return solution, map_result, img
 
-def OnMouseAction(event, x, y, flags, param):
+def OnMouseAction(event, x, y, flags, param):   # mouse action for anwser sheet
     global x1, y1, flag
     if event == cv2.EVENT_LBUTTONDOWN:
         x1, y1 = x, y
@@ -50,6 +51,30 @@ def OnMouseAction(event, x, y, flags, param):
         x1, y1 = x, y
         flag = 2
 
+
+def on_mouse(event, x, y, flags, param):   #mouse action for  cover sheet
+    global img, point1, point2, g_rect
+    img2 = img.copy()
+    if event == cv2.EVENT_LBUTTONDOWN:             #point 1
+        point1 = (x, y)
+        cv2.imshow('image', img2)
+
+    elif event == cv2.EVENT_MOUSEMOVE and (flags & cv2.EVENT_FLAG_LBUTTON):        #drag mouse
+        cv2.rectangle(img2, point1, (x, y), (255, 0, 0), thickness=2)
+        cv2.imshow('image', img2)
+
+    elif event == cv2.EVENT_LBUTTONUP:                      # point 2
+        point2 = (x, y)
+        cv2.rectangle(img2, point1, point2, (0, 0, 255), thickness=2)
+        cv2.imshow('image', img2)
+        if point1 != point2:
+            min_x = min(point1[0], point2[0])
+            min_y = min(point1[1], point2[1])
+            width = abs(point1[0] - point2[0])
+            height = abs(point1[1] - point2[1])
+            g_rect = [min_x, min_y, width, height]
+            cut_img = img[min_y:min_y + height, min_x:min_x + width]
+            cv2.imshow('ROI', cut_img)
 
 
 
@@ -154,6 +179,29 @@ def tskmapping(ordinate_question,table, x,  y, y_0, height, img_gray_3channel, i
 
     return tskmap
 
+def selectROI(imgPath):
+    global img
+    img = cv2.imread(imgPath)
+    if img is None:
+        raise FileNotFoundError(
+            'Cover sheet can\'t be loaded with the path:{}'.format(imgPath)
+        )
+    g_rect = get_image_roi(img)
+    return g_rect[0], g_rect[1], g_rect[2], g_rect[3]
+
+
+def get_image_roi(img):
+    cv2.namedWindow('image', cv2.WINDOW_NORMAL)
+    while True:
+        cv2.setMouseCallback('image', on_mouse)
+        cv2.imshow('image', img)
+        key = cv2.waitKey(0)
+        if key == 13:
+            break
+    cv2.destroyAllWindows()
+    return g_rect
+
+
 
 
 
@@ -162,7 +210,9 @@ def tskmapping(ordinate_question,table, x,  y, y_0, height, img_gray_3channel, i
 
 
 if __name__ == '__main__':
-    test = cv2.imread('../results/scan-02.jpg')
-    answer_sheet = AnswerSheet('../scan/scan-02.jpg')
-    answer_sheet.run()
+    # image_path="../dataset/images/IMG_0007.JPG"
+    image_path = "../scan/scan-01.jpg"
+
+    x, y, w, h = selectROI(image_path)
+    print(x, y, w, h)
 
