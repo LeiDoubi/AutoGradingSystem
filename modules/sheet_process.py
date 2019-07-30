@@ -1,7 +1,9 @@
 import numpy as np
 import cv2 as cv
-import geometry
+from . import geometry
 import time
+import os
+# from .digits_recognization import DigitsString
 
 
 class Sheet:
@@ -30,18 +32,49 @@ class Sheet:
                 cv.THRESH_BINARY_INV, 11, 2)
         else:
             _, self.img_bi = cv.threshold(
-                self.img_blur, 100, 255, cv.THRESH_BINARY_INV)
+                self.img_blur, 210, 255, cv.THRESH_BINARY_INV)
         pass
 
 
+# class CoverSheet(Sheet):
+#     # def __init__(self, ROI, *args, **kwargs):
+#     #     super().__init__(*args, **kwargs)
+#     #     self.digits_string = DigitsString(
+#     #         self.img_bi[ROI[0]:ROI[1], ROI[2]:ROI[3]].copy())
+#     pass
+
+
 class AnswerSheet(Sheet):
-    def __init__(self, *args, nquestions=33, **kwargs):
+    def __init__(
+            self,
+            img_path,
+            nquestions=33,
+            save_result=True,
+            dst_dir_path='results/',
+            dst_file_name=None,
+            *args,
+            **kwargs):
         self.nquestions = nquestions
-        super().__init__(*args, **kwargs)
+        if dst_file_name is None:
+            self.dst_img_path = os.path.join(
+                dst_dir_path,
+                os.path.basename(img_path))
+        else:
+            self.dst_img_path = os.path.join(
+                dst_dir_path,
+                dst_file_name)
+        self.save_result = save_result
+        self.table_info = {'cell_w': None,
+                           'cell_h': None,
+                           'left_up_corner': [None, None]}  # w,h
+        # the answers of this sheet represented as a numpy array
+        self.answers = []
+        self.default_map = []
+        super().__init__(img_path, *args, **kwargs)
 
     def _findContours(self):
         # set morphology structures size
-        structsize = int(self.img_gray.shape[1]/80)
+        structsize = int(self.img_gray.shape[1]/30)
 
         # hsize for horizontal lines, vsize for vertical lines
         hsize = (structsize, 1)
@@ -55,17 +88,20 @@ class AnswerSheet(Sheet):
             self.img_bi, structure_horizon, (-1, -1))
         img_gray_horizon = cv.dilate(
             img_gray_horizon, structure_horizon, (-1, -1))
+        cv.imwrite('D:\img_horizon.png', img_gray_horizon)
         img_gray_vertical = cv.erode(
             self.img_bi, structure_vertical, (-1, -1))
         img_gray_vertical = cv.dilate(
             img_gray_vertical, structure_vertical, (-1, -1))
         self.result_binary = cv.addWeighted(
             img_gray_horizon, 1, img_gray_vertical, 1, 0)
-        pass
-        # find contours
-        self._contours, self._hierarchy = cv.findContours(
+
+        # add closing to eliminate the gap in case the horizontal line is broken.
+        self.result_binary = cv.morphologyEx(
+            self.result_binary, cv.MORPH_CLOSE, np.ones((3, 7)))
+        # find contours and be compatible with different version of opencv
+        self._contours, self._hierarchy, *_ = cv.findContours(
             self.result_binary, cv.RETR_CCOMP, cv.CHAIN_APPROX_SIMPLE)
-        pass
 
     def findRects(self):
         # make sure contours exists
@@ -86,7 +122,7 @@ class AnswerSheet(Sheet):
             Save the vertices of every found rectangles in ndarry
         '''
         self.table = []
-        y_max_err = 18
+        y_max_err = 9
         if not hasattr(self, 'rects'):
             self.findRects()
         # mass center of cells
@@ -101,7 +137,12 @@ class AnswerSheet(Sheet):
         # last dim posx, posy
         rects = np.concatenate((np.array(self.rects, dtype=np.int16),
                                 mc), axis=1)
-
+        rects_float = rects.astype('f')
+        for idx in range(len(rects)):
+            index_sorted = np.argsort(
+                (rects_float[idx, :-1, :, 0]**2 +
+                 rects_float[idx, :-1, :, 1]**2).flatten())
+            rects[idx, :-1, :, :] = rects[idx, index_sorted, :, :]
         idx = 0
         idx_1st_Answer_row = 0
         # in case the number of detected cells in first line smaller than 5
@@ -124,8 +165,8 @@ class AnswerSheet(Sheet):
         # use kmeans to estimate the height of cell
         kmeans_criteria = (cv.TERM_CRITERIA_EPS +
                            cv.TERM_CRITERIA_MAX_ITER, 10, 0.1)
-        pos_corners_firstLine = rects[idx:idx_1st_Answer_row, :-1, :, 1].reshape(
-            (idx_1st_Answer_row-idx)*4, 1)
+        pos_corners_firstLine = rects[idx:idx_1st_Answer_row, :-1, :, 1].\
+            reshape((idx_1st_Answer_row-idx)*4, 1)
         pos_corners_firstLine = pos_corners_firstLine.astype(np.float32)
         _, _, kmeans_centers = cv.kmeans(
             pos_corners_firstLine,
@@ -142,6 +183,12 @@ class AnswerSheet(Sheet):
             isFiveSuccessiveCellsInLine = np.all(
                 np.abs(rects[idx:idx+5, 4, 0, 1] -
                        ymean_mc_FiveCells) < y_max_err)
+            x_cells_sorted = np.sort(rects[idx:idx+5, 4, :, 0].flatten())
+            # the space between x of the tables must be bigger than a value
+            # since the width of the table is about 60 we take 10 here
+            isFiveSuccessiveCellsInLine = isFiveSuccessiveCellsInLine and \
+                np.all((x_cells_sorted[1:]-x_cells_sorted[:-1]) > 10)
+
             isFiveSuccessiveCellsInNextLine = np.abs(
                 ymean_mc_FiveCells -
                 (y_mc_lastLine+height_cell)) < y_max_err
@@ -156,7 +203,6 @@ class AnswerSheet(Sheet):
             else:
                 self.table.append(None)
                 while idx+4 < rects.shape[0]:
-                    idx = idx + 1
                     # print(rects[idx, 4, :, 1], (y_mc_lastLine+height_cell*2))
                     isCellInNextLine = np.abs(
                         rects[idx, 4, :, 1]-(y_mc_lastLine+height_cell*2)
@@ -165,54 +211,109 @@ class AnswerSheet(Sheet):
                         # update the y of centriods in last line
                         y_mc_lastLine = y_mc_lastLine+height_cell
                         break
+                    idx = idx + 1
 
-    def detectCrosses1(self):
+    def calculate_cell_w_h(self):
+        w_sorted = np.sort(self.table[0][:, -1, :, 0].flatten())
+        self.table_info['cell_w'] = (w_sorted[2:] -
+                                     w_sorted[1:-1]).mean()
+        for i in range(1, len(self.table)):
+            if self.table[i] is not None:
+                self.table_info['cell_h'] = \
+                    (self.table[i][:, -1, :, 1].mean() -
+                     self.table[0][:, -1, :, 1].mean())/i
+        self.table_info['left_up_corner'][0] = \
+            self.table[0][0, -1, :, 0] - self.table_info['cell_w']/2
+        self.table_info['left_up_corner'][1] = \
+            self.table[0][0, -1, :, 1] - self.table_info['cell_h']/2
+
+    def estimate_chopped_lines_center_h(self):
         '''
-        This function detect whether cross exist in the each cell within the lines \n
+        return ndarry
+            shape:       N*2, 
+            1st col:     question Nr
+            2nd col:     corresponding vertical ordinate. 
+        '''
+        ordinate_question = []
+        if not hasattr(self, 'calculate_cell_w_h'):
+            self.calculate_cell_w_h()
+        cell_h = self.table_info['cell_h']
+        for idx, cell in enumerate(self.table):
+            if cell is None:
+                for idx_temp in reversed(range(idx)):
+                    if self.table[idx_temp] is not None:
+                        h = self.table[idx_temp][0, -1, 0, 1] + \
+                            (idx-idx_temp)*cell_h
+                        ordinate_question.append(
+                            [idx, h])
+                        break
+            if idx > self.nquestions:
+                break
+        return np.array(ordinate_question)
+
+    def detectCrosses(self, alpha=0.8):
+        '''
+        This function detect whether cross exist
+        in the each cell within the lines
         corresponding to from 1st question to last question
         '''
-        _, img_bi = cv.threshold(
-            self.img_blur, 100, 255, cv.THRESH_BINARY_INV)
-        kernel = np.ones((2, 2), np.uint8)
-        img_bi = cv.erode(img_bi, kernel, iterations=1)
-        # skip the first row
-        table = self.table[1:]
-        self.detected_crosses = np.zeros((self.nquestions, 4), dtype=bool)
-        cv.namedWindow('lines found', cv.WINDOW_NORMAL)
-        for i in range(0, self.nquestions):
+        table = self.table
+        self.answers = np.zeros((len(table), 4), dtype=bool)
+        overlay = self.img_gray_3channel.copy()
+        # index of the rows that from the n_question-th row on has content
+        self._inds_ContentInRow = set()
+        # iterate from 1st to last question
+
+        for i in range(1, len(table)):
             # skip the chopped off rows
             if table[i] is not None:
                 # skip the first column
                 for j in range(1, 5):
-                    iscrossincell, isabnormal, lines, intersections = geometry.detectCrossinCell(
-                        img_bi, table[i][j, :-1, :, :])
-                    img_gray_3channel = self.img_gray_3channel
+                    iscrossincell, isabnormal, lines, intersections = \
+                        geometry.detectCrossinCell(
+                            self.img_bi, table[i][j, :-1, :, :])
                     if lines is not None:
                         if isabnormal:
-                            linecolor = (255, 0, 0)
+                            linecolor = (0, 0, 255)
                         elif iscrossincell:
                             linecolor = (214, 44, 152)
+                            self.answers[i-1, j-1] = 1
+                            if i > self.nquestions:
+                                self._inds_ContentInRow.add(i)
                         else:
                             linecolor = (20, 255, 20)
                         for line in lines:
-                            pass
                             cv.line(
-                                img_gray_3channel,
+                                overlay,
                                 (line[0, 0], line[0, 1]),
                                 (line[0, 2], line[0, 3]),
                                 linecolor,
                                 2)
-                            # cv.imshow('lines found', img_gray_3channel)
-                            # cv.waitKey(1)
                         if intersections is not None:
                             for intersection in intersections:
-                                cv.circle(img_gray_3channel,
+                                cv.circle(overlay,
                                           (int(intersection[0]), int(
                                               intersection[1])),
                                           2, (0, 0, 255), -1)
-                                # cv.imshow('lines found', img_gray_3channel)
-                                # cv.waitKey(1)
-        cv.imwrite('results/res_0816.png', self.img_gray_3channel)
+        self.img_cross_detected = cv.addWeighted(self.img_gray_3channel,
+                                                 1-alpha,
+                                                 overlay,
+                                                 alpha,
+                                                 0)
+        if self.save_result:
+            cv.imwrite(self.dst_img_path, self.img_cross_detected)
+        self._inds_ContentInRow = list(self._inds_ContentInRow)
+
+    def set_default_map(self):
+        inds_to_be_corrected_answers = []
+        for ind in range(1, 1+self.nquestions):
+            if self.table is None:
+                inds_to_be_corrected_answers.append(ind)
+        # if the lengh of both list are compatible, then set the default map
+        if len(self._inds_ContentInRow) == len(inds_to_be_corrected_answers):
+            self.default_map = np.array([inds_to_be_corrected_answers,
+                                         self._inds_ContentInRow],
+                                        dtype=np.int8).T
 
     def drawTable(self):
         gray_3channel = self.img_gray_3channel.copy()
@@ -227,26 +328,29 @@ class AnswerSheet(Sheet):
         for i, cellsInLine in enumerate(table):
             if cellsInLine is not None:
                 for j in range(1, cellsInLine.shape[0]):
-                    cv.drawContours(
-                        gray_3channel,
-                        [cellsInLine[j, :-1, :, :].astype(np.int32)],
-                        -1,
-                        (255, 0, 0),
-                        3
-                    )
+                    # cv.drawContours(
+                        # gray_3channel,
+                       # [cellsInLine[j, :-1, :, :].astype(np.int32)],
+                       # -1,
+                        #(255, 0, 0),
+                       # 3
+                   # )
                     cv.putText(
                         gray_3channel,
                         str(i+1)+','+map_idx2char[j],
                         (cellsInLine[j, 4, :, 0]-20,
                          cellsInLine[j, 4, :, 1]+15),
                         cv.FONT_HERSHEY_PLAIN,
-                        3,
+                        2,
                         (20, 20, 255),
                         4
                     )
-
+                    cv.namedWindow('Find cells', cv.WINDOW_NORMAL)
                     cv.imshow('Find cells', gray_3channel)
                     cv.waitKey(1)
+        cv.waitKey(0)
+        cv.imwrite('labeled_img.png', gray_3channel)
+        print('saved')
 
     def drawRect(self, time=200):
 
@@ -260,6 +364,7 @@ class AnswerSheet(Sheet):
             cy = int(mm['m01'] / mm['m00'])
             cv.circle(gray_3channel, (cx, cy), 10, (0, 0, 255), -1)
             cv.drawContours(gray_3channel, [rect], -1, (255, 0, 0), 3)
+            cv.namedWindow('findRects', cv.WINDOW_NORMAL)
             cv.imshow('findRects', gray_3channel)
             if _ < len(self.rects)-1:
                 cv.waitKey(time)
@@ -283,16 +388,28 @@ class AnswerSheet(Sheet):
         print('needed time: {}'.format((elapsed_time-starttime)*260))
         return lines
 
+    def showImg(self):
+        # self.run()
+        # self.drawRect()
+        # self._findContours()
+        cv.namedWindow('IMG', cv.WINDOW_NORMAL)
+        cv.imshow('IMG', self.img_bi)
+        cv.waitKey()
+        cv.destroyAllWindows()
+
     def run(self):
         starttime = time.time()
         self.findRects()
         self.mapRects2Table()
-        # self.drawTable()
-        self.detectCrosses1()
-        print('needed time:{}s'.format(time.time()-starttime))
+        self.calculate_cell_w_h()
+
+        self.detectCrosses()
+        # self.set_default_map()
+        print('Processing sheet:  {}\tneeded time:{:4.3f}s'.
+              format(os.path.split(self.imgPath)[-1], time.time()-starttime))
 
 
-class CoverSheet(Sheet):
+def add_map_info(img, img_original, dst_question_number, loc):
     pass
 
 
@@ -302,6 +419,6 @@ if __name__ == '__main__':
     # testsheet = AnswerSheet('test_images/IMG_0797.jpg')
     # testsheet = AnswerSheet('test_images/IMG_0799.jpg')
     # testsheet = AnswerSheet('test_images/IMG_0811.jpg')
-    testsheet = AnswerSheet('test_images/IMG_0816.jpg')
-    # testsheet.drawRect()
+    testsheet = AnswerSheet('scan/scan-04.jpg')
     testsheet.run()
+    # testsheet.showImg()

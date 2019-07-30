@@ -25,18 +25,15 @@ def detectCrossinCell(img, rect):
             'The given rect have the information of {} corners'
             .format(rect.shape[0]))
     # find the left-upper corner and right-lower corner
-    rect_float = rect.astype('float64')
-    index_sorted = np.argsort(
-        (rect_float[:, :, 0]**2+rect_float[:, :, 1]**2).flatten())
-    leftupperCorn = rect[index_sorted[0], :, :]
-    rightlowerCorn = rect[index_sorted[-1], :, :]
-    erode = 7
+    leftupperCorn = rect[0, ...]
+    rightlowerCorn = rect[3, ...]
+    erode = 2
     lines = cv.HoughLinesP(
         img[leftupperCorn[0, 1]+erode:rightlowerCorn[0, 1]-erode,
             leftupperCorn[0, 0]+erode:rightlowerCorn[0, 0]-erode],
-        1, np.pi/50, 20, minLineLength=8, maxLineGap=2)
+        1, np.pi/150, 20, minLineLength=4, maxLineGap=3)
     if lines is None:
-        return iscrossincell, isabnormal, lines,intersections
+        return iscrossincell, isabnormal, lines, intersections
     else:
         # add offset to get absolute coordinates
         lines[:, :, [0, 2]] = leftupperCorn[0, 0]+erode+lines[:, :, [0, 2]]
@@ -51,7 +48,20 @@ def detectCrossinCell(img, rect):
             intersections = _findIntersections2LineGroups(
                 segmented_lines[0], segmented_lines[1])
             if intersections.shape[0] != 0:
-                iscrossincell = isLineinOneCluster(intersections)
+                # too many intersections means that student
+                # wanna to correct answer
+                if intersections.shape[0] > 30:
+                    iscrossincell = False
+                else:
+                    iscrossincell = isLineinOneCluster(intersections)
+                    # in case all intersections though can be segmented
+                    # into one cluster but is not concentrated
+                    if iscrossincell:
+                        center = np.mean(intersections, axis=0)
+                        centered_intersections = intersections - center
+                        iscrossincell = np.max(np.sum(
+                            centered_intersections**2, axis=1
+                        )) < 35
                 return iscrossincell, isabnormal, lines, intersections
             else:
                 intersections = _findIntersections2LineGroup2(
@@ -130,7 +140,7 @@ def _intersection(lineA, lineB, isLineSegment=True):
     --               --  --   --      --                   --
     return (x, y) if intersction exists else None
     '''
-    allowed_error = 4
+    allowed_error = 2
     x1, y1, x2, y2 = lineA
     x3, y3, x4, y4 = lineB
     coff = np.array([[y2-y1, x1-x2], [y4-y3, x3-x4]])
@@ -191,7 +201,8 @@ def _findIntersections2LineGroup2(line_groupA, line_groupB):
     upperleft = points_neg[0]
     upperright = points_pos[len(points_pos)-1]
 
-    # error set to 6 pixels, in order to avoid the case that hough transform can only detect the lines on bottom(or others) half of the cross
+    # error set to 6 pixels, in order to avoid the case that hough transform
+    # can only detect the lines on bottom(or others) half of the cross
     if point_x <= bottomright[0]+6\
             and point_x >= bottomleft[0]-6\
             and point_y <= upperleft[1]+6\
@@ -203,4 +214,4 @@ def _findIntersections2LineGroup2(line_groupA, line_groupB):
 
 
 if __name__ == '__main__':
-    print(intersection((1, 1, 10, 10), (2, 0, 2, 1)))
+    pass
