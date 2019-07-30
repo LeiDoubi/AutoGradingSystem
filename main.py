@@ -25,7 +25,9 @@ def grade_sheets(path_sheets,
                  ids_student,
                  solutions,
                  p_solutions,
-                 path_imgs_save='log_imgs/'):
+                 semi_mode_on=True,
+                 path_imgs_save='log_imgs/'
+                 ):
     # get ids_student, solutions and points of solutions
     points_sum_students = []
     names_images = sorted(os.listdir(path_sheets))
@@ -39,15 +41,24 @@ def grade_sheets(path_sheets,
         answers_student = answer_sheet.answers.copy()
         answer_sheet_to_edit = answer_sheet.img_cross_detected.copy()
         # print(answer_sheet.estimate_chopped_lines_center_h())
-        answers, map_result, img = setCallback(
-            answer_sheet_to_edit,
-            answer_sheet.table,
-            answer_sheet.img_original,
-            answer_sheet.estimate_chopped_lines_center_h(),
-            answer_sheet.default_map,
-            answers_student)
-        coordinates = [None]*len(solutions)
+        # semi-automatic mode
+        if semi_mode_on:
+            answers, map_result, img = setCallback(
+                answer_sheet_to_edit,
+                answer_sheet.table,
+                answer_sheet.img_original,
+                answer_sheet.estimate_chopped_lines_center_h(),
+                answer_sheet.default_map,
+                answers_student)
+        # full-automatic mode
+        else:
+            answers = answers_student
+            map_result = None
+            img = answer_sheet_to_edit
 
+        print(answers.sum())
+
+        coordinates = [None]*len(solutions)
         if map_result is not None:
             for row in map_result:
                 answers_student[row[0]-1,
@@ -77,10 +88,11 @@ def grade_sheets(path_sheets,
 
 
 if __name__ == '__main__':
-    semi_mode_on = False
+    semi_mode_on = True
     path_student_ids = 'student_ids.csv'
     path_solution = 'solution_A.xlsx'
     get_solutions_points(path_solution)
     ids_student = read_student_ids(path_student_ids)
     solutions, points_solutions = get_solutions_points(path_solution)
-    grade_sheets('scan/', ids_student, solutions, points_solutions)
+    grade_sheets('scan/', ids_student, solutions,
+                 points_solutions, semi_mode_on)

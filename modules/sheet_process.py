@@ -3,6 +3,7 @@ import cv2 as cv
 from . import geometry
 import time
 import os
+from .digit import DigitsString
 
 
 class Sheet:
@@ -35,8 +36,11 @@ class Sheet:
         pass
 
 
-class Coversheet(Sheet):
-    pass
+class CoverSheet(Sheet):
+    def __init__(self, ROI, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.digits_string = DigitsString(
+            self.img_bi[ROI[0]:ROI[1], ROI[2]:ROI[3]].copy())
 
 
 class AnswerSheet(Sheet):
@@ -269,7 +273,8 @@ class AnswerSheet(Sheet):
                             self.img_bi, table[i][j, :-1, :, :])
                     if lines is not None:
                         if isabnormal:
-                            linecolor = (255, 0, 0)
+                            # linecolor = (255, 0, 0)
+                            linecolor = (20, 255, 20)
                         elif iscrossincell:
                             linecolor = (214, 44, 152)
                             self.answers[i-1, j-1] = 1
@@ -323,8 +328,8 @@ class AnswerSheet(Sheet):
         for i, cellsInLine in enumerate(table):
             if cellsInLine is not None:
                 for j in range(1, cellsInLine.shape[0]):
-                    #cv.drawContours(
-                        #gray_3channel,
+                    # cv.drawContours(
+                        # gray_3channel,
                        # [cellsInLine[j, :-1, :, :].astype(np.int32)],
                        # -1,
                         #(255, 0, 0),
@@ -344,6 +349,8 @@ class AnswerSheet(Sheet):
                     cv.imshow('Find cells', gray_3channel)
                     cv.waitKey(1)
         cv.waitKey(0)
+        cv.imwrite('labeled_img.png', gray_3channel)
+        print('saved')
 
     def drawRect(self, time=200):
 
@@ -401,10 +408,6 @@ class AnswerSheet(Sheet):
         # self.set_default_map()
         print('Processing sheet:  {}\tneeded time:{:4.3f}s'.
               format(os.path.split(self.imgPath)[-1], time.time()-starttime))
-
-
-class CoverSheet(Sheet):
-    pass
 
 
 def add_map_info(img, img_original, dst_question_number, loc):
