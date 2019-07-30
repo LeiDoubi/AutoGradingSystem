@@ -98,5 +98,6 @@ if __name__ == '__main__':
     get_solutions_points(path_solution)
     ids_student = read_student_ids(path_student_ids)
     solutions, points_solutions = get_solutions_points(path_solution)
+
     grade_sheets('scan/', ids_student, solutions,
                  points_solutions, semi_mode_on)
