@@ -88,7 +88,7 @@ class AnswerSheet(Sheet):
             self.img_bi, structure_horizon, (-1, -1))
         img_gray_horizon = cv.dilate(
             img_gray_horizon, structure_horizon, (-1, -1))
-        cv.imwrite('D:\img_horizon.png', img_gray_horizon)
+        # cv.imwrite('D:\img_horizon.png', img_gray_horizon)
         img_gray_vertical = cv.erode(
             self.img_bi, structure_vertical, (-1, -1))
         img_gray_vertical = cv.dilate(
