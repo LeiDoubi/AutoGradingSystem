@@ -12,7 +12,7 @@ libraries are installed.
 * sklearn >= 0.21.2
 ### How to use
 Just run the script `main.py` located on the root directory without the any parameter to test it on the our collected scans. If no error occurs, a folder called **_'./all_results/'_** will be created, where the results will be stored. Several parameters within the `main.py` need to be clarified here. 
-1. `digit_recognize_on` (line 29): if **True**, then the student IDs will be recognized automatically. Otherwise the student IDs are supposed to be given with a *.csv* file. For instance an example file called `student_ids_example.csv` is provided in folder *'.inputs/'*. By default it is set to **True**. The user will be firstly required to select the Region of the Interest (ROI) that contains the digits string by dragging a rectangular. Moreover, user can left click on the image to reselect the region and press ENTER to confirm your selection. More details about the digits recognition will be showed in following section.
+1. `digit_recognize_on` (line 29): if **True**, then the student IDs will be recognized automatically. Otherwise the student IDs are supposed to be given with a *.csv* file. For instance an example file called `student_ids_example.csv` is provided in folder *'.inputs/'*. The standard solution file **_'solution_example.xlsx'_** is also located in that folder . By default it is set to **True**. The user will be firstly required to select the Region of the Interest (ROI) that contains the digits string by dragging a rectangular. Moreover, user can left click on the image to reselect the region and press ENTER to confirm your selection. More details about the digits recognition will be showed in following section.
 
     ![Select ROI](/store_asserts/selectROI.gif)
 
