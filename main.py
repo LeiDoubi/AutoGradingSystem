@@ -30,6 +30,8 @@ def grade_sheets(path_sheets,
                  ):
     # get ids_student, solutions and points of solutions
     points_sum_students = []
+    #tobedeleted
+    sum_cross=[]
     names_images = sorted(os.listdir(path_sheets))
     paths_images = [os.path.join(path_sheets, name) for name in names_images]
     # for index in range(int(len(paths_images)/2)-1, 0, -1):
@@ -83,8 +85,10 @@ def grade_sheets(path_sheets,
                       coordinates,
                       p_solutions
                       )
+        sum_cross.append(answers_student.sum())
         points_sum_students.append(points)
     print(points_sum_students)
+    print(sum_cross)
 
 
 if __name__ == '__main__':

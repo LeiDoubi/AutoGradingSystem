@@ -273,8 +273,7 @@ class AnswerSheet(Sheet):
                             self.img_bi, table[i][j, :-1, :, :])
                     if lines is not None:
                         if isabnormal:
-                            # linecolor = (255, 0, 0)
-                            linecolor = (20, 255, 20)
+                            linecolor = (0, 0, 255)
                         elif iscrossincell:
                             linecolor = (214, 44, 152)
                             self.answers[i-1, j-1] = 1
@@ -402,7 +401,6 @@ class AnswerSheet(Sheet):
         self.findRects()
         self.mapRects2Table()
         self.calculate_cell_w_h()
-        # self.drawTable()
 
         self.detectCrosses()
         # self.set_default_map()
