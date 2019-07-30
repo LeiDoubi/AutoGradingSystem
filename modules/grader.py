@@ -1,6 +1,9 @@
 import numpy as np
+import pandas as pd
 import cv2 as cv
 import os
+from .sheet_process import AnswerSheet
+from .Interactive import setCallback
 
 
 def grad(id_student,
@@ -65,5 +68,84 @@ def grad(id_student,
                 5)
             break
     cv.imwrite(
-        os.path.join(path_imgs_save, str(id_student)+'.png'), img_save)
+        os.path.join(path_imgs_save, 'ID_'+str(id_student)+'.png'), img_save)
     return points_sum
+
+
+def grade_sheets(paths_images,
+                 ids_student,
+                 solutions,
+                 p_solutions,
+                 semi_mode_on=True,
+                 path_imgs_save='log_imgs/'
+                 ):
+    # get ids_student, solutions and points of solutions
+    points_students = []
+    for id_student, path_image in zip(ids_student, paths_images):
+        answer_sheet = AnswerSheet(path_image)
+        answer_sheet.run()
+        # map = answer_sheet.default_map
+        answers_student = answer_sheet.answers.copy()
+        answer_sheet_to_edit = answer_sheet.img_cross_detected.copy()
+        # print(answer_sheet.estimate_chopped_lines_center_h())
+        # semi-automatic mode
+        if semi_mode_on:
+            answers, map_result, img = setCallback(
+                answer_sheet_to_edit,
+                answer_sheet.table,
+                answer_sheet.img_original,
+                answer_sheet.estimate_chopped_lines_center_h(),
+                answer_sheet.default_map,
+                answers_student)
+        # full-automatic mode
+        else:
+            answers = answers_student
+            map_result = None
+            img = answer_sheet_to_edit
+
+        # print(answers.sum())
+
+        coordinates = [None]*len(solutions)
+        if map_result is not None:
+            for row in map_result:
+                answers_student[row[0]-1,
+                                :] = answers[row[1]-1, :]
+                coordinates[row[0]-1] = [answer_sheet.table[row[1]][4, -1, :, 0] +
+                                         answer_sheet.table_info['cell_w'],
+                                         answer_sheet.table[row[1]][4, -1, :, 1] +
+                                         int(answer_sheet.table_info['cell_h']/2)]
+        for idx in range(len(solutions)):
+            # TOBEDELETED
+            if answer_sheet.table[idx+1] is not None:
+                coordinates[idx] = [answer_sheet.table[idx+1][4, -1, :, 0] +
+                                    answer_sheet.table_info['cell_w'],
+                                    answer_sheet.table[idx+1][4, -1, :, 1] +
+                                    int(answer_sheet.table_info['cell_h']/2)]
+
+        points = grad(id_student,
+                      answers_student,
+                      solutions,
+                      path_imgs_save,
+                      img,
+                      coordinates,
+                      p_solutions
+                      )
+        points_students.append(points)
+        # save the results
+    # idsANDscores = np.array([ids_student, points_students]).T
+    df = pd.DataFrame(
+        {'Student ID': ids_student,
+         'Scores': points_students})
+    df.to_csv(
+        os.path.join(os.path.dirname(path_imgs_save),
+                     'students_IDS_scores.csv'),
+        index=False)
+
+    # np.savetxt(
+    #     os.path.join(os.path.dirname(path_imgs_save),
+    #                  'students_IDS_scores.csv'),
+    #     idsANDscores,
+    #     fmt='%.1f',
+    #     delimiter='\t\t',
+    #     header='Student ID \t score'
+    # )

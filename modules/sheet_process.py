@@ -3,7 +3,7 @@ import cv2 as cv
 from . import geometry
 import time
 import os
-from .digit import DigitsString
+# from .digits_recognization import DigitsString
 
 
 class Sheet:
@@ -36,11 +36,12 @@ class Sheet:
         pass
 
 
-class CoverSheet(Sheet):
-    def __init__(self, ROI, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.digits_string = DigitsString(
-            self.img_bi[ROI[0]:ROI[1], ROI[2]:ROI[3]].copy())
+# class CoverSheet(Sheet):
+#     # def __init__(self, ROI, *args, **kwargs):
+#     #     super().__init__(*args, **kwargs)
+#     #     self.digits_string = DigitsString(
+#     #         self.img_bi[ROI[0]:ROI[1], ROI[2]:ROI[3]].copy())
+#     pass
 
 
 class AnswerSheet(Sheet):

@@ -1,10 +1,11 @@
-import os
-from modules.sheet_process import AnswerSheet
-from modules.grader import grad
+from modules.grader import grade_sheets
 import numpy as np
 import pandas as pd
-from modules.Interactive import setCallback
-import cv2
+from modules.Interactive import selectROI
+from modules.digits_recognization import recognize_digits_allsheets
+import os
+import cv2 as cv
+import shutil
 
 
 def read_student_ids(path_ids):
@@ -21,83 +22,61 @@ def get_solutions_points(path_solution):
     return solutions, points_solutions
 
 
-def grade_sheets(path_sheets,
-                 ids_student,
-                 solutions,
-                 p_solutions,
-                 semi_mode_on=True,
-                 path_imgs_save='log_imgs/'
-                 ):
-    # get ids_student, solutions and points of solutions
-    points_sum_students = []
-    #tobedeleted
-    sum_cross=[]
-    names_images = sorted(os.listdir(path_sheets))
-    paths_images = [os.path.join(path_sheets, name) for name in names_images]
-    # for index in range(int(len(paths_images)/2)-1, 0, -1):
-    for id_student, path_image in zip(ids_student, paths_images[1::2]):
-        answer_sheet = AnswerSheet(path_image)
-        answer_sheet.run()
-
-        # map = answer_sheet.default_map
-        answers_student = answer_sheet.answers.copy()
-        answer_sheet_to_edit = answer_sheet.img_cross_detected.copy()
-        # print(answer_sheet.estimate_chopped_lines_center_h())
-        # semi-automatic mode
-        if semi_mode_on:
-            answers, map_result, img = setCallback(
-                answer_sheet_to_edit,
-                answer_sheet.table,
-                answer_sheet.img_original,
-                answer_sheet.estimate_chopped_lines_center_h(),
-                answer_sheet.default_map,
-                answers_student)
-        # full-automatic mode
-        else:
-            answers = answers_student
-            map_result = None
-            img = answer_sheet_to_edit
-
-        print(answers.sum())
-
-        coordinates = [None]*len(solutions)
-        if map_result is not None:
-            for row in map_result:
-                answers_student[row[0]-1,
-                                :] = answers[row[1]-1, :]
-                coordinates[row[0]-1] = [answer_sheet.table[row[1]][4, -1, :, 0] +
-                                         answer_sheet.table_info['cell_w'],
-                                         answer_sheet.table[row[1]][4, -1, :, 1] +
-                                         int(answer_sheet.table_info['cell_h']/2)]
-        for idx in range(len(solutions)):
-            # TOBEDELETED
-            if answer_sheet.table[idx+1] is not None:
-                coordinates[idx] = [answer_sheet.table[idx+1][4, -1, :, 0] +
-                                    answer_sheet.table_info['cell_w'],
-                                    answer_sheet.table[idx+1][4, -1, :, 1] +
-                                    int(answer_sheet.table_info['cell_h']/2)]
-
-        points = grad(id_student,
-                      answers_student,
-                      solutions,
-                      path_imgs_save,
-                      img,
-                      coordinates,
-                      p_solutions
-                      )
-        sum_cross.append(answers_student.sum())
-        points_sum_students.append(points)
-    print(points_sum_students)
-    print(sum_cross)
-
-
 if __name__ == '__main__':
-    semi_mode_on = True
-    path_student_ids = 'student_ids.csv'
-    path_solution = 'solution_A.xlsx'
-    get_solutions_points(path_solution)
-    ids_student = read_student_ids(path_student_ids)
-    solutions, points_solutions = get_solutions_points(path_solution)
+    # if set it to True, then for each answer sheet human intervention are required
+    semi_mode_on = False
+    #
+    digit_recognize_on = True
+    # directory for the outputs
+    output_dir = 'all_results'
+    if os.path.exists(output_dir):
+        shutil.rmtree(output_dir)
+    os.mkdir(output_dir)
+    # if the recognization of the digits string is not need then
+    # the path of xlsx file that save students IDs should be given here
+    if not digit_recognize_on:
+        path_student_ids = 'inputs/student_ids_example.csv'
 
-    grade_sheets('scan/', ids_student, solutions,
-                 points_solutions, semi_mode_on)
+    path_solution = 'inputs/solution_example.xlsx'
+    dir_CoverSheets = 'scans/'
+    dir_AnswerSheets = 'scans/'
+    # if all scans locate in same directory then split them
+    if dir_AnswerSheets == dir_CoverSheets:
+        names_Sheets = sorted(os.listdir(dir_CoverSheets))
+        paths_Sheets = [os.path.join(dir_CoverSheets, name)
+                        for name in names_Sheets]
+        paths_AnswerSheets = paths_Sheets[1::2]
+        paths_CoverSheets = paths_Sheets[::2]
+    else:
+        names_CoverSheets = sorted(os.listdir(dir_CoverSheets))
+        paths_CoverSheets = [os.path.join(dir_CoverSheets, name)
+                             for name in names_CoverSheets]
+        names_AnswerSheets = sorted(os.listdir(dir_AnswerSheets))
+        paths_AnswerSheets = [os.path.join(dir_AnswerSheets, name)
+                              for name in names_AnswerSheets]
+    # save the points of each question as a list
+    points_solutions = get_solutions_points(path_solution)
+    # do digit recognization on each cover sheet
+    if digit_recognize_on:
+        # mannually choose a the region of interest
+        hint = '''Please select the region that contains the digits string by draging a rectangular!!
+you can left click on the image to reselect the region and press ENTER to confirm your selection'''
+        print(hint)
+        ROI = selectROI(paths_CoverSheets[0])
+        # apply ROI to each cover sheet
+        ids_student = recognize_digits_allsheets(
+            paths_CoverSheets,
+            ROI,
+            path_result=os.path.join(output_dir, 'CoverSheets'))
+    # read the students ids from a xlsx file
+    else:
+        ids_student = read_student_ids(path_student_ids)
+    solutions, points_solutions = get_solutions_points(path_solution)
+    # grade the answer sheets
+    grade_sheets(
+        paths_AnswerSheets,
+        ids_student,
+        solutions,
+        points_solutions,
+        semi_mode_on,
+        path_imgs_save=os.path.join(output_dir, 'AnswerSheets'))

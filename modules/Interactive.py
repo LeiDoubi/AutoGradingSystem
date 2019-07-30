@@ -29,7 +29,7 @@ def setCallback(img, table, img_orig, ordinate_questions,  tskmap, solutionmatri
                    if (x1<705) and (x1 > 573) and (y1>353) and (y1<2045):
                     map_result =  tskmapping(ordinate_questions, table, x1, y1, 353, 33, img, img_orig, tskmap)
         k = cv2.waitKey(1)
-        if k == ord('q'):
+        if k == ord('n'):
             break
         if k == ord('e'):
             mode =1 - mode
@@ -178,6 +178,7 @@ def tskmapping(ordinate_question,table, x,  y, y_0, height, img_gray_3channel, i
                 img_gray_3channel[j, i] = img_orig[j, i]
 
     return tskmap
+
 
 def selectROI(imgPath):
     global img
